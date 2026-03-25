@@ -386,4 +386,49 @@ Examples:
 
 
 if __name__ == '__main__':
-    main()
+    # ============================================================
+    # 在这里修改路径，然后直接运行
+    # ============================================================
+    
+    # Word 文件路径（修改为你的文件路径）
+    INPUT_FILE = r"D:\AI\sample\报告.docx"
+    
+    # 输出 Markdown 文件路径（可选，不填则自动生成）
+    OUTPUT_FILE = r"D:\AI\sample\报告.md"
+    
+    # 是否提取图片
+    EXTRACT_IMAGES = True
+    
+    # ============================================================
+    
+    import subprocess
+    
+    # 检查依赖
+    if not HAS_DOCX:
+        print("Installing python-docx...")
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'python-docx', '-q'])
+        print("Please run the script again.")
+        sys.exit(0)
+    
+    # 执行转换
+    print("=" * 60)
+    print("Word to Markdown Converter")
+    print("=" * 60)
+    print(f"Input:  {INPUT_FILE}")
+    print(f"Output: {OUTPUT_FILE}")
+    print(f"Images: {'Yes' if EXTRACT_IMAGES else 'No'}")
+    print("=" * 60)
+    
+    if not os.path.exists(INPUT_FILE):
+        print(f"[Error] File not found: {INPUT_FILE}")
+        print("\nPlease edit the script and set INPUT_FILE to your Word document path.")
+        sys.exit(1)
+    
+    converter = Word2Markdown(extract_images=EXTRACT_IMAGES)
+    markdown = converter.convert(INPUT_FILE, OUTPUT_FILE)
+    
+    print("\n" + "=" * 60)
+    print("Conversion complete!")
+    print("=" * 60)
+    print(f"\nPreview:\n{'-' * 30}")
+    print(markdown[:800] + "..." if len(markdown) > 800 else markdown)
