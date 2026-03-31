@@ -265,11 +265,19 @@ if __name__ == '__main__':
     # 输出路径（None表示与PDF同目录）
     OUTPUT_PATH = None
     
-    # 提取模式: "all" / "text" / "images" / "tables"
+    # 提取模式: "all" / "text" / "images" / "tables" / "ocr"
+    # - all: 完整提取（文本+表格+图片）→ Word
+    # - text: 仅提取文本 → .txt
+    # - images: 仅提取图片 → 图片文件夹
+    # - tables: 仅提取表格 → CSV
+    # - ocr: 扫描版PDF识别 → Word（适用于纯图片PDF）
     MODE = "all"
     
     # 是否提取图片（仅MODE="all"时有效）
     EXTRACT_IMAGES = True
+    
+    # OCR语言（仅MODE="ocr"时有效）: 'ch'=中文, 'en'=英文
+    OCR_LANG = "ch"
     # ================================================
     
     if MODE == "all":
@@ -280,5 +288,9 @@ if __name__ == '__main__':
         extract_images_only(PDF_PATH, OUTPUT_PATH)
     elif MODE == "tables":
         extract_tables_only(PDF_PATH, OUTPUT_PATH)
+    elif MODE == "ocr":
+        # OCR模式：导入并调用pdf_ocr模块
+        from pdf_ocr import pdf_ocr_to_word
+        pdf_ocr_to_word(PDF_PATH, OUTPUT_PATH, OCR_LANG)
     else:
         print(f"未知模式: {MODE}")
