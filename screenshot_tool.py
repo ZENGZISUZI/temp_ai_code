@@ -1,8 +1,8 @@
 """
-电脑截屏工具 v2.3
+电脑截屏工具 v2.4
 作者：狗腿子 🐕
 功能：全屏截图、选择窗口截图、保存到文件
-修复：使用 win32gui 直接截取窗口，更可靠
+修复：窗口最小化时自动恢复后再截图
 """
 
 import win32gui
@@ -10,6 +10,7 @@ import win32ui
 import win32con
 from PIL import Image
 import os
+import time
 from datetime import datetime
 
 
@@ -120,6 +121,27 @@ def capture_window(hwnd, save_path=None):
     return screenshot
 
 
+def restore_window(hwnd):
+    """
+    恢复最小化的窗口
+    
+    Args:
+        hwnd: 窗口句柄
+    """
+    # 检查窗口是否最小化
+    if win32gui.IsIconic(hwnd):
+        print("窗口已最小化，正在恢复...")
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        time.sleep(0.3)  # 等待窗口恢复
+    
+    # 将窗口置于前台
+    try:
+        win32gui.SetForegroundWindow(hwnd)
+        time.sleep(0.2)  # 等待窗口激活
+    except Exception as e:
+        print(f"注意: 无法将窗口置于前台 ({e})")
+
+
 def list_windows():
     """列出所有可见窗口"""
     windows = []
@@ -151,7 +173,7 @@ def main():
     save_path = os.path.join(save_dir, filename)
     
     print("=" * 50)
-    print("截屏工具 v2.3 🐕")
+    print("截屏工具 v2.4 🐕")
     print("=" * 50)
     print("请选择截图模式：")
     print("1. 全屏截图")
@@ -195,6 +217,10 @@ def main():
                 hwnd = selected['hwnd']
                 
                 print(f"\n正在截取窗口: {selected['title']}")
+                
+                # 恢复窗口（如果最小化）
+                restore_window(hwnd)
+                
                 screenshot = capture_window(hwnd, save_path)
                 print(f"截图完成！尺寸: {screenshot.size[0]} x {screenshot.size[1]}")
                 print(f"保存位置: {save_path}")
