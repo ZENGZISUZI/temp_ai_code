@@ -1,13 +1,15 @@
 """
-电脑截屏工具 v2.4
+电脑截屏工具 v2.5
 作者：狗腿子 🐕
 功能：全屏截图、选择窗口截图、保存到文件
-修复：窗口最小化时自动恢复后再截图
+修复：绕过 SetForegroundWindow 权限限制
 """
 
 import win32gui
 import win32ui
 import win32con
+import win32process
+import ctypes
 from PIL import Image
 import os
 import time
@@ -121,6 +123,37 @@ def capture_window(hwnd, save_path=None):
     return screenshot
 
 
+def force_set_foreground_window(hwnd):
+    """
+    强制将窗口置于前台（绕过 Windows 权限限制）
+    
+    Args:
+        hwnd: 窗口句柄
+    """
+    # 方法1: 使用 AttachThreadInput 绕过限制
+    foreground_thread = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())[0]
+    current_thread = win32api.GetCurrentThreadId()
+    target_thread = win32process.GetWindowThreadProcessId(hwnd)[0]
+    
+    # 附加线程输入
+    if current_thread != target_thread:
+        ctypes.windll.user32.AttachThreadInput(current_thread, target_thread, True)
+        if foreground_thread != target_thread:
+            ctypes.windll.user32.AttachThreadInput(foreground_thread, target_thread, True)
+    
+    # 显示窗口
+    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+    win32gui.BringWindowToTop(hwnd)
+    win32gui.SetForegroundWindow(hwnd)
+    win32gui.SetFocus(hwnd)
+    
+    # 分离线程输入
+    if current_thread != target_thread:
+        ctypes.windll.user32.AttachThreadInput(current_thread, target_thread, False)
+        if foreground_thread != target_thread:
+            ctypes.windll.user32.AttachThreadInput(foreground_thread, target_thread, False)
+
+
 def restore_window(hwnd):
     """
     恢复最小化的窗口
@@ -132,14 +165,15 @@ def restore_window(hwnd):
     if win32gui.IsIconic(hwnd):
         print("窗口已最小化，正在恢复...")
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        time.sleep(0.3)  # 等待窗口恢复
+        time.sleep(0.3)
     
-    # 将窗口置于前台
+    # 尝试将窗口置于前台
     try:
-        win32gui.SetForegroundWindow(hwnd)
-        time.sleep(0.2)  # 等待窗口激活
+        force_set_foreground_window(hwnd)
+        time.sleep(0.3)
+        print("窗口已激活")
     except Exception as e:
-        print(f"注意: 无法将窗口置于前台 ({e})")
+        print(f"注意: 无法将窗口置于前台 ({e})，尝试直接截图...")
 
 
 def list_windows():
@@ -159,6 +193,10 @@ def list_windows():
     return windows
 
 
+# 需要导入 win32api
+import win32api
+
+
 def main():
     # 配置区域
     save_dir = r"D:\AI\screenshots"  # 截图保存目录
@@ -173,7 +211,7 @@ def main():
     save_path = os.path.join(save_dir, filename)
     
     print("=" * 50)
-    print("截屏工具 v2.4 🐕")
+    print("截屏工具 v2.5 🐕")
     print("=" * 50)
     print("请选择截图模式：")
     print("1. 全屏截图")
