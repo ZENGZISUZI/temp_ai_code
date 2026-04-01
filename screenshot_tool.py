@@ -1,31 +1,61 @@
 """
-电脑截屏工具 v2.0
+电脑截屏工具 v2.3
 作者：狗腿子 🐕
-功能：全屏截图、区域截图、选择窗口截图、保存到文件
+功能：全屏截图、选择窗口截图、保存到文件
+修复：使用 win32gui 直接截取窗口，更可靠
 """
 
-import pyautogui
-import pygetwindow as gw
+import win32gui
+import win32ui
+import win32con
 from PIL import Image
 import os
 from datetime import datetime
 
 
-def take_screenshot(save_path=None, region=None):
+def take_full_screenshot(save_path=None):
     """
-    截取屏幕
+    全屏截图
     
     Args:
         save_path: 保存路径
-        region: 截图区域 (left, top, width, height)，None为全屏
     
     Returns:
         PIL.Image 对象
     """
-    if region:
-        screenshot = pyautogui.screenshot(region=region)
-    else:
-        screenshot = pyautogui.screenshot()
+    # 获取屏幕尺寸
+    hwnd = win32gui.GetDesktopWindow()
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    width = right - left
+    height = bottom - top
+    
+    # 创建设备上下文
+    hwndDC = win32gui.GetWindowDC(hwnd)
+    mfcDC = win32ui.CreateDCFromHandle(hwndDC)
+    saveDC = mfcDC.CreateCompatibleDC()
+    
+    # 创建位图
+    saveBitMap = win32ui.CreateBitmap()
+    saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
+    saveDC.SelectObject(saveBitMap)
+    
+    # 截图
+    saveDC.BitBlt((0, 0), (width, height), mfcDC, (0, 0), win32con.SRCCOPY)
+    
+    # 转换为 PIL Image
+    bmpinfo = saveBitMap.GetInfo()
+    bmpstr = saveBitMap.GetBitmapBits(True)
+    screenshot = Image.frombuffer(
+        'RGB',
+        (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+        bmpstr, 'raw', 'BGRX', 0, 1
+    )
+    
+    # 清理资源
+    win32gui.DeleteObject(saveBitMap.GetHandle())
+    saveDC.DeleteDC()
+    mfcDC.DeleteDC()
+    win32gui.ReleaseDC(hwnd, hwndDC)
     
     if save_path:
         screenshot.save(save_path)
@@ -34,50 +64,77 @@ def take_screenshot(save_path=None, region=None):
     return screenshot
 
 
-def get_screen_size():
-    """获取屏幕尺寸"""
-    return pyautogui.size()
-
-
-def list_windows():
-    """列出所有可见窗口"""
-    windows = gw.getAllWindows()
-    visible_windows = []
-    for i, win in enumerate(windows):
-        if win.visible and win.title:
-            visible_windows.append({
-                'index': i,
-                'title': win.title,
-                'window': win
-            })
-    return visible_windows
-
-
-def capture_window(window, save_path=None):
+def capture_window(hwnd, save_path=None):
     """
     截取指定窗口
     
     Args:
-        window: pygetwindow 窗口对象
+        hwnd: 窗口句柄
         save_path: 保存路径
     
     Returns:
         PIL.Image 对象
     """
     # 获取窗口位置和大小
-    left = window.left
-    top = window.top
-    width = window.width
-    height = window.height
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    width = right - left
+    height = bottom - top
     
-    # 截取窗口区域
-    screenshot = pyautogui.screenshot(region=(left, top, width, height))
+    print(f"窗口位置: ({left}, {top}), 大小: {width}x{height}")
+    
+    if width <= 0 or height <= 0:
+        raise ValueError("窗口大小无效")
+    
+    # 创建设备上下文
+    hwndDC = win32gui.GetWindowDC(hwnd)
+    mfcDC = win32ui.CreateDCFromHandle(hwndDC)
+    saveDC = mfcDC.CreateCompatibleDC()
+    
+    # 创建位图
+    saveBitMap = win32ui.CreateBitmap()
+    saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
+    saveDC.SelectObject(saveBitMap)
+    
+    # 截图
+    saveDC.BitBlt((0, 0), (width, height), mfcDC, (0, 0), win32con.SRCCOPY)
+    
+    # 转换为 PIL Image
+    bmpinfo = saveBitMap.GetInfo()
+    bmpstr = saveBitMap.GetBitmapBits(True)
+    screenshot = Image.frombuffer(
+        'RGB',
+        (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+        bmpstr, 'raw', 'BGRX', 0, 1
+    )
+    
+    # 清理资源
+    win32gui.DeleteObject(saveBitMap.GetHandle())
+    saveDC.DeleteDC()
+    mfcDC.DeleteDC()
+    win32gui.ReleaseDC(hwnd, hwndDC)
     
     if save_path:
         screenshot.save(save_path)
         print(f"截图已保存: {save_path}")
     
     return screenshot
+
+
+def list_windows():
+    """列出所有可见窗口"""
+    windows = []
+    
+    def enum_window_proc(hwnd, results):
+        if win32gui.IsWindowVisible(hwnd):
+            title = win32gui.GetWindowText(hwnd)
+            if title:
+                results.append({
+                    'hwnd': hwnd,
+                    'title': title
+                })
+    
+    win32gui.EnumWindows(enum_window_proc, windows)
+    return windows
 
 
 def main():
@@ -94,7 +151,7 @@ def main():
     save_path = os.path.join(save_dir, filename)
     
     print("=" * 50)
-    print("截屏工具 v2.0 🐕")
+    print("截屏工具 v2.3 🐕")
     print("=" * 50)
     print("请选择截图模式：")
     print("1. 全屏截图")
@@ -110,10 +167,8 @@ def main():
     
     elif choice == "1":
         # 全屏截图
-        screen_width, screen_height = get_screen_size()
-        print(f"\n屏幕尺寸: {screen_width} x {screen_height}")
-        print("正在截屏...")
-        screenshot = take_screenshot(save_path)
+        print("\n正在截屏...")
+        screenshot = take_full_screenshot(save_path)
         print(f"截图完成！尺寸: {screenshot.size[0]} x {screenshot.size[1]}")
         print(f"保存位置: {save_path}")
     
@@ -128,25 +183,19 @@ def main():
         
         print("\n可用窗口列表：")
         print("-" * 50)
-        for win in windows:
-            print(f"[{win['index']}] {win['title']}")
+        for i, win in enumerate(windows):
+            print(f"[{i}] {win['title']}")
         print("-" * 50)
         
         try:
             window_index = int(input("请输入窗口编号: ").strip())
             
-            # 查找选中的窗口
-            selected_window = None
-            for win in windows:
-                if win['index'] == window_index:
-                    selected_window = win['window']
-                    break
-            
-            if selected_window:
-                # 激活窗口并截图
-                selected_window.activate()
-                print(f"\n正在截取窗口: {selected_window.title}")
-                screenshot = capture_window(selected_window, save_path)
+            if 0 <= window_index < len(windows):
+                selected = windows[window_index]
+                hwnd = selected['hwnd']
+                
+                print(f"\n正在截取窗口: {selected['title']}")
+                screenshot = capture_window(hwnd, save_path)
                 print(f"截图完成！尺寸: {screenshot.size[0]} x {screenshot.size[1]}")
                 print(f"保存位置: {save_path}")
             else:
@@ -156,6 +205,8 @@ def main():
             print("请输入有效的数字")
         except Exception as e:
             print(f"截图失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     else:
         print("无效选项")
