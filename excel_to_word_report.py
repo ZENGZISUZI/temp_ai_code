@@ -48,6 +48,109 @@ TESTCASE_FIELD_MAPPING = {
 }
 
 
+def clean_case_number(name):
+    """
+    清理用例名字中的数字前缀
+    
+    支持格式:
+    - "1、xxx" -> "xxx"
+    - "一、xxx" -> "xxx"
+    - "1.xxx" -> "xxx"
+    - "1 xxx" -> "xxx"
+    - "（1）xxx" -> "xxx"
+    - "(1)xxx" -> "xxx"
+    
+    参数:
+        name: 用例名字
+        
+    返回:
+        清理后的名字
+    """
+    if not name:
+        return name
+    
+    # 中文数字映射
+    chinese_nums = '一二三四五六七八九十'
+    
+    # 匹配模式：数字/中文数字 + 标点符号
+    patterns = [
+        r'^[\d]+\s*[、.．。:：]\s*',  # 1、 1. 1．
+        r'^[一二三四五六七八九十]+\s*[、.．。:：]\s*',  # 一、 一.
+        r'^[\(（][\d]+[）\)]\s*',  # (1) （1）
+        r'^[\d]+\s+',  # 1 开头加空格
+    ]
+    
+    result = name.strip()
+    for pattern in patterns:
+        result = re.sub(pattern, '', result)
+    
+    return result.strip()
+
+
+def extract_case_number(name):
+    """
+    提取用例名字中的数字前缀
+    
+    参数:
+        name: 用例名字
+        
+    返回:
+        数字（阿拉伯数字），如果没有则返回None
+    """
+    if not name:
+        return None
+    
+    # 中文数字映射
+    chinese_to_num = {
+        '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+        '六': 6, '七': 7, '八': 8, '九': 9, '十': 10
+    }
+    
+    # 尝试匹配中文数字
+    match = re.match(r'^([一二三四五六七八九十]+)\s*[、.．。:：]', name)
+    if match:
+        chinese_num = match.group(1)
+        return chinese_to_num.get(chinese_num)
+    
+    # 尝试匹配阿拉伯数字
+    match = re.match(r'^[\(（]?(\d+)[）\)]?\s*[、.．。:：]?', name)
+    if match:
+        return int(match.group(1))
+    
+    return None
+
+
+def validate_chapter_position(big_cases):
+    """
+    验证大用例是否放在正确的章节位置
+    
+    参数:
+        big_cases: 大用例列表
+        
+    返回:
+        验证结果列表 [{'name': 'xxx', 'expected': 1, 'actual': 1, 'valid': True}, ...]
+    """
+    results = []
+    
+    for idx, big_case in enumerate(big_cases, 1):
+        name = big_case.get('name', '')
+        expected_num = extract_case_number(name)
+        
+        result = {
+            'name': name,
+            'expected': expected_num,
+            'actual': idx,
+            'valid': expected_num is None or expected_num == idx
+        }
+        
+        if not result['valid']:
+            print(f"⚠️ 警告: 大用例 '{name}' 位置不匹配，期望在第{expected_num}章节，实际在第{idx}章节")
+        
+        results.append(result)
+    
+    return results
+
+
 def find_best_match(target_field, excel_columns, mapping_dict):
     """
     智能匹配：根据目标字段在Excel列名中找最佳匹配
@@ -389,8 +492,8 @@ class ExcelToWordReport:
                         # 添加到汇总数据
                         self.summary_data.append({
                             '序号': len(self.summary_data) + 1,
-                            '试验分类': big_case_name,
-                            '试验项目': str(small_case_name),
+                            '试验分类': clean_case_number(big_case_name),
+                            '试验项目': clean_case_number(str(small_case_name)),
                             '测试结论': small_case['data'].get('试验结论', '')
                         })
 
@@ -532,19 +635,52 @@ class ExcelToWordReport:
                 cell = summary_table.cell(row_idx + 1, col_idx)
                 cell.text = str(item.get(header, ''))
                 set_cell_font(cell)
+        
+        # 合并相同试验分类的单元格
+        if self.summary_data:
+            current_category = None
+            merge_start = 1
+            
+            for row_idx, item in enumerate(self.summary_data, 1):
+                category = item.get('试验分类', '')
+                
+                if category != current_category:
+                    # 如果是新分类，合并前一个分类的单元格
+                    if current_category is not None and row_idx > merge_start + 1:
+                        # 合并试验分类列（第2列，索引1）
+                        summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                    current_category = category
+                    merge_start = row_idx
+            
+            # 合并最后一个分类
+            if len(self.summary_data) > 1 and merge_start < len(self.summary_data):
+                summary_table.cell(merge_start, 1).merge(summary_table.cell(len(self.summary_data), 1))
 
         doc.add_paragraph()
 
         # ===== 3. 测试数据 =====
         add_heading_with_number(doc, '3 测试数据', level=1)
+        
+        # 验证大用例章节位置
+        print("\n验证大用例章节位置...")
+        validation_results = validate_chapter_position(self.big_cases)
+        invalid_count = sum(1 for r in validation_results if not r['valid'])
+        if invalid_count > 0:
+            print(f"⚠️ 发现 {invalid_count} 个大用例位置不匹配")
+        else:
+            print("✓ 所有大用例位置正确")
 
         for big_idx, big_case in enumerate(self.big_cases, 1):
+            # 清理大用例名字中的数字前缀
+            clean_name = clean_case_number(big_case["name"])
             # 大用例标题 (3.1, 3.2, ...)
-            add_heading_with_number(doc, f'3.{big_idx} {big_case["name"]}', level=2)
+            add_heading_with_number(doc, f'3.{big_idx} {clean_name}', level=2)
 
             for small_idx, small_case in enumerate(big_case['small_cases'], 1):
+                # 清理小用例名字中的数字前缀
+                clean_small_name = clean_case_number(small_case["name"])
                 # 小用例标题 (3.1.1, 3.1.2, ...)
-                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {small_case["name"]}', level=3)
+                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3)
 
                 # 小用例表格
                 create_testcase_table(doc, small_case['data'])
@@ -795,14 +931,33 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
                         cell = summary_table.cell(row_idx + 1, col_idx)
                         cell.text = str(item.get(header, ''))
                         set_cell_font(cell)
+                
+                # 合并相同试验分类的单元格
+                if len(converter.summary_data) > 1:
+                    current_category = None
+                    merge_start = 1
+                    
+                    for row_idx, item in enumerate(converter.summary_data, 1):
+                        category = item.get('试验分类', '')
+                        
+                        if category != current_category:
+                            if current_category is not None and row_idx > merge_start + 1:
+                                summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                            current_category = category
+                            merge_start = row_idx
+                    
+                    if merge_start < len(converter.summary_data):
+                        summary_table.cell(merge_start, 1).merge(summary_table.cell(len(converter.summary_data), 1))
             
             # 添加测试数据
             if converter.big_cases:
                 doc.add_heading(f'{idx+1}.3 测试数据', level=2)
                 for big_idx, big_case in enumerate(converter.big_cases):
-                    doc.add_heading(f'{idx+1}.3.{big_idx+1} {big_case["name"]}', level=3)
+                    clean_big_name = clean_case_number(big_case["name"])
+                    doc.add_heading(f'{idx+1}.3.{big_idx+1} {clean_big_name}', level=3)
                     for small_idx, small_case in enumerate(big_case['small_cases']):
-                        doc.add_heading(f'{idx+1}.3.{big_idx+1}.{small_idx+1} {small_case["name"]}', level=4)
+                        clean_small_name = clean_case_number(small_case["name"])
+                        doc.add_heading(f'{idx+1}.3.{big_idx+1}.{small_idx+1} {clean_small_name}', level=4)
                         create_testcase_table(doc, small_case['data'])
             
             print(f"  ✓ {sheet_name} 处理完成")
