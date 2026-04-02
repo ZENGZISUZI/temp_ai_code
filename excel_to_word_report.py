@@ -1,0 +1,474 @@
+# -*- coding: utf-8 -*-
+"""
+Excel测试报告转Word文档工具
+自动提取Excel数据生成标准Word报告模板
+依赖: pip install pandas openpyxl python-docx
+"""
+
+import pandas as pd
+from docx import Document
+from docx.shared import Pt, Inches, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+import os
+import re
+
+
+# ==================== 智能字段映射配置 ====================
+
+# 概述部分字段映射（Excel列名 -> Word报告字段）
+OVERVIEW_FIELD_MAPPING = {
+    # 产品信息相关
+    '产品信息': ['零部件名称', '产品名称', '产品型号', '设备名称', '名称'],
+    # 试验信息相关
+    '试验信息': ['试验名称', '试验类型', '测试类型', '试验目的'],
+    # 工作模式相关
+    '工作模式': ['工作模式', '运行模式', '工作状态', '模式'],
+    # 测试仪器设备相关
+    '测试仪器设备': ['测试仪器', '仪器设备', '试验设备', '设备', '使用仪器'],
+}
+
+# 小用例表格字段映射（Word字段 -> Excel可能列名）
+TESTCASE_FIELD_MAPPING = {
+    '开始日期': ['开始日期', '开始时间', '起始日期', '开始'],
+    '结束日期': ['结束日期', '结束时间', '终止日期', '结束'],
+    '样机数量': ['样机数量', '数量', '样品数量', '台数'],
+    '样机编号': ['样机编号', '编号', '样品编号', '机号'],
+    '试验机构': ['试验机构', '检测机构', '测试机构', '机构'],
+    '试验环境': ['试验环境', '环境条件', '环境', '测试环境'],
+    '试验标准': ['试验标准', '标准', '测试标准', '参考标准'],
+    '试验条件': ['试验条件', '条件', '测试条件'],
+    '规格要求': ['规格要求', '要求', '技术要求', '规格'],
+    '试验数据': ['试验数据', '数据', '测试数据', '结果数据'],
+    '试验结论': ['试验结论', '结论', '测试结论', '结果'],
+}
+
+
+def find_best_match(target_field, excel_columns, mapping_dict):
+    """
+    智能匹配：根据目标字段在Excel列名中找最佳匹配
+    
+    参数:
+        target_field: 目标字段名（如"产品信息"）
+        excel_columns: Excel实际列名列表
+        mapping_dict: 字段映射字典
+    
+    返回:
+        匹配到的Excel列名，未匹配返回None
+    """
+    if target_field not in mapping_dict:
+        return None
+    
+    keywords = mapping_dict[target_field]
+    
+    for keyword in keywords:
+        for col in excel_columns:
+            if col and keyword in str(col):
+                return col
+    
+    return None
+
+
+def smart_match_field(field_name, excel_columns):
+    """
+    智能匹配单个字段
+    
+    参数:
+        field_name: 字段名
+        excel_columns: Excel列名列表
+    
+    返回:
+        匹配到的列名
+    """
+    # 先尝试精确匹配
+    if field_name in excel_columns:
+        return field_name
+    
+    # 再尝试包含匹配
+    for col in excel_columns:
+        if col and field_name in str(col):
+            return col
+    
+    # 尝试反向匹配（Excel列名包含在字段名中）
+    for col in excel_columns:
+        if col and str(col) in field_name:
+            return col
+    
+    return None
+
+
+def set_cell_font(cell, font_name='宋体', font_size=10.5, bold=False):
+    """设置单元格字体"""
+    for paragraph in cell.paragraphs:
+        for run in paragraph.runs:
+            run.font.name = font_name
+            run.font.size = Pt(font_size)
+            run.font.bold = bold
+            run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+
+
+def set_table_border(table):
+    """设置表格边框"""
+    tbl = table._tbl
+    tblPr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+    tblBorders = OxmlElement('w:tblBorders')
+    
+    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'single')
+        border.set(qn('w:sz'), '4')
+        border.set(qn('w:color'), '000000')
+        tblBorders.append(border)
+    
+    tblPr.append(tblBorders)
+    if tbl.tblPr is None:
+        tbl.insert(0, tblPr)
+
+
+def add_heading_with_number(doc, text, level=1):
+    """添加带编号的标题"""
+    heading = doc.add_heading(text, level=level)
+    heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    for run in heading.runs:
+        run.font.name = '黑体'
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+    return heading
+
+
+def create_testcase_table(doc, data_dict):
+    """
+    创建测试用例表格
+    
+    参数:
+        doc: Word文档对象
+        data_dict: 数据字典 {字段名: 值}
+    """
+    # 表格字段顺序
+    fields = ['开始日期', '结束日期', '样机数量', '样机编号', '试验机构', 
+              '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
+    
+    # 创建表格（11行2列：字段名 | 值）
+    table = doc.add_table(rows=len(fields), cols=2)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_border(table)
+    
+    for i, field in enumerate(fields):
+        # 第一列：字段名
+        cell0 = table.cell(i, 0)
+        cell0.text = field
+        set_cell_font(cell0, bold=True)
+        
+        # 第二列：值
+        cell1 = table.cell(i, 1)
+        value = data_dict.get(field, '')
+        cell1.text = str(value) if value else ''
+        set_cell_font(cell1)
+    
+    doc.add_paragraph()  # 空行
+    return table
+
+
+class ExcelToWordReport:
+    """Excel转Word报告主类"""
+    
+    def __init__(self, excel_path, word_path=None):
+        """
+        初始化
+        
+        参数:
+            excel_path: Excel文件路径
+            word_path: Word输出路径，默认同名
+        """
+        self.excel_path = excel_path
+        self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
+        
+        # 读取Excel
+        self.df = None
+        self.excel_columns = []
+        
+        # 解析后的数据
+        self.overview_data = {}  # 概述数据
+        self.big_cases = []  # 大用例列表 [{'name': 'aaaa', 'small_cases': [...]}]
+        self.summary_data = []  # 汇总数据
+        
+    def load_excel(self, sheet_name=0):
+        """加载Excel文件"""
+        self.df = pd.read_excel(self.excel_path, sheet_name=sheet_name, header=None)
+        self.excel_columns = [str(col) for col in self.df.iloc[0].tolist() if pd.notna(col)]
+        print(f"加载Excel成功，共 {len(self.df)} 行")
+        print(f"检测到列名: {self.excel_columns[:10]}...")  # 显示前10个
+        
+    def find_test_project_column(self):
+        """找到"试验项目"列"""
+        for i, col in enumerate(self.df.iloc[0]):
+            if pd.notna(col) and '试验项目' in str(col):
+                return i
+        return None
+    
+    def find_merged_cells_info(self):
+        """
+        检测合并单元格（大用例）
+        返回: [(起始行, 结束行, 大用例名), ...]
+        """
+        # 使用openpyxl读取合并单元格信息
+        from openpyxl import load_workbook
+        
+        wb = load_workbook(self.excel_path)
+        ws = wb.active
+        
+        # 找到试验项目列
+        test_col = None
+        for cell in ws[1]:
+            if cell.value and '试验项目' in str(cell.value):
+                test_col = cell.column
+                break
+        
+        if not test_col:
+            print("未找到'试验项目'列")
+            return []
+        
+        merged_ranges = []
+        for merged_range in ws.merged_cells.ranges:
+            # 只关心试验项目列的合并单元格
+            if merged_range.min_col == test_col:
+                start_row = merged_range.min_row
+                end_row = merged_range.max_row
+                # 获取合并单元格的值
+                cell_value = ws.cell(row=start_row, column=test_col).value
+                if cell_value:
+                    merged_ranges.append((start_row, end_row, str(cell_value)))
+        
+        # 按行号排序
+        merged_ranges.sort(key=lambda x: x[0])
+        return merged_ranges, test_col
+    
+    def parse_overview_data(self, big_case_start_row):
+        """
+        解析概述数据（大用例之前的内容）
+        
+        参数:
+            big_case_start_row: 第一个大用例的起始行
+        """
+        # 概述数据在大用例之前，通常是键值对形式
+        for row_idx in range(1, big_case_start_row):
+            row_data = self.df.iloc[row_idx]
+            
+            # 查找键值对（假设在D、E列或相邻列）
+            for col_idx in range(len(row_data) - 1):
+                key = row_data.iloc[col_idx]
+                value = row_data.iloc[col_idx + 1]
+                
+                if pd.notna(key) and pd.notna(value):
+                    key_str = str(key).strip()
+                    value_str = str(value).strip()
+                    
+                    # 智能匹配到概述字段
+                    for field, keywords in OVERVIEW_FIELD_MAPPING.items():
+                        if any(kw in key_str for kw in keywords):
+                            self.overview_data[field] = value_str
+                            break
+        
+        print(f"解析概述数据: {self.overview_data}")
+    
+    def parse_test_cases(self):
+        """解析测试用例（大用例和小用例）"""
+        merged_ranges, test_col = self.find_merged_cells_info()
+        
+        if not merged_ranges:
+            print("未检测到合并单元格，尝试其他方式解析...")
+            # 备用解析逻辑
+            self.parse_without_merge()
+            return
+        
+        # 解析概述数据（第一个大用例之前）
+        first_big_case_row = merged_ranges[0][0]
+        self.parse_overview_data(first_big_case_row)
+        
+        # 解析大用例和小用例
+        for i, (start_row, end_row, big_case_name) in enumerate(merged_ranges):
+            big_case = {
+                'name': big_case_name,
+                'small_cases': []
+            }
+            
+            # 小用例在合并单元格下方（从end_row+1到下一个大用例之前）
+            next_start = merged_ranges[i + 1][0] if i + 1 < len(merged_ranges) else len(self.df) + 1
+            
+            for row_idx in range(end_row + 1, next_start):
+                if row_idx <= len(self.df):
+                    row_data = self.df.iloc[row_idx - 1]  # pandas索引从0开始
+                    small_case_name = row_data.iloc[test_col - 1] if test_col else None
+                    
+                    if pd.notna(small_case_name):
+                        small_case = {
+                            'name': str(small_case_name),
+                            'data': self.extract_testcase_data(row_data)
+                        }
+                        big_case['small_cases'].append(small_case)
+                        
+                        # 添加到汇总数据
+                        self.summary_data.append({
+                            '序号': len(self.summary_data) + 1,
+                            '试验分类': big_case_name,
+                            '试验项目': str(small_case_name),
+                            '测试结论': small_case['data'].get('试验结论', '')
+                        })
+            
+            self.big_cases.append(big_case)
+        
+        print(f"解析完成: {len(self.big_cases)} 个大用例, 共 {len(self.summary_data)} 个小用例")
+    
+    def parse_without_merge(self):
+        """无合并单元格时的备用解析"""
+        test_col = self.find_test_project_column()
+        if test_col is None:
+            print("无法找到试验项目列")
+            return
+        
+        current_big_case = None
+        
+        for row_idx in range(1, len(self.df)):
+            row_data = self.df.iloc[row_idx]
+            test_project = row_data.iloc[test_col]
+            
+            if pd.notna(test_project):
+                # 判断是否是大用例（简单规则：看是否缩进或特殊标记）
+                # 这里需要根据实际情况调整
+                pass
+    
+    def extract_testcase_data(self, row_data):
+        """
+        从行数据中提取测试用例数据
+        
+        参数:
+            row_data: DataFrame的一行
+        
+        返回:
+            字典 {字段名: 值}
+        """
+        data = {}
+        
+        # 建立列名到索引的映射
+        col_name_to_idx = {}
+        for idx, col_name in enumerate(self.df.iloc[0]):
+            if pd.notna(col_name):
+                col_name_to_idx[str(col_name)] = idx
+        
+        # 智能匹配每个字段
+        for field, keywords in TESTCASE_FIELD_MAPPING.items():
+            for keyword in keywords:
+                for col_name, idx in col_name_to_idx.items():
+                    if keyword in col_name:
+                        value = row_data.iloc[idx] if idx < len(row_data) else None
+                        if pd.notna(value):
+                            data[field] = str(value)
+                            break
+                if field in data:
+                    break
+        
+        return data
+    
+    def generate_word_report(self):
+        """生成Word报告"""
+        doc = Document()
+        
+        # 设置默认字体
+        doc.styles['Normal'].font.name = '宋体'
+        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+        
+        # ===== 1. 概述 =====
+        add_heading_with_number(doc, '1 概述', level=1)
+        
+        # 1.1 产品信息
+        add_heading_with_number(doc, '1.1 产品信息', level=2)
+        doc.add_paragraph(self.overview_data.get('产品信息', '（待填写）'))
+        
+        # 1.2 试验信息
+        add_heading_with_number(doc, '1.2 试验信息', level=2)
+        doc.add_paragraph(self.overview_data.get('试验信息', '（待填写）'))
+        
+        # 1.3 工作模式
+        add_heading_with_number(doc, '1.3 工作模式', level=2)
+        doc.add_paragraph(self.overview_data.get('工作模式', '（待填写）'))
+        
+        # 1.4 测试仪器设备
+        add_heading_with_number(doc, '1.4 测试仪器设备', level=2)
+        doc.add_paragraph(self.overview_data.get('测试仪器设备', '（待填写）'))
+        
+        # ===== 2. 试验结果汇总 =====
+        add_heading_with_number(doc, '2 试验结果汇总', level=1)
+        
+        # 创建汇总表格
+        summary_table = doc.add_table(rows=len(self.summary_data) + 1, cols=4)
+        summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        set_table_border(summary_table)
+        
+        # 表头
+        headers = ['序号', '试验分类', '试验项目', '测试结论']
+        for i, header in enumerate(headers):
+            cell = summary_table.cell(0, i)
+            cell.text = header
+            set_cell_font(cell, bold=True)
+        
+        # 数据行
+        for row_idx, item in enumerate(self.summary_data):
+            for col_idx, header in enumerate(headers):
+                cell = summary_table.cell(row_idx + 1, col_idx)
+                cell.text = str(item.get(header, ''))
+                set_cell_font(cell)
+        
+        doc.add_paragraph()
+        
+        # ===== 3. 测试数据 =====
+        add_heading_with_number(doc, '3 测试数据', level=1)
+        
+        for big_idx, big_case in enumerate(self.big_cases, 1):
+            # 大用例标题 (3.1, 3.2, ...)
+            add_heading_with_number(doc, f'3.{big_idx} {big_case["name"]}', level=2)
+            
+            for small_idx, small_case in enumerate(big_case['small_cases'], 1):
+                # 小用例标题 (3.1.1, 3.1.2, ...)
+                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {small_case["name"]}', level=3)
+                
+                # 小用例表格
+                create_testcase_table(doc, small_case['data'])
+        
+        # 保存文档
+        doc.save(self.word_path)
+        print(f"Word报告已生成: {self.word_path}")
+        return self.word_path
+
+
+def main():
+    """主函数"""
+    # ===== 配置区域 =====
+    excel_file = r"D:\AI\test_data.xlsx"  # Excel输入文件路径
+    word_file = None  # Word输出路径，None表示自动生成
+    sheet_name = 0  # 工作表，默认第一个
+    # ====================
+    
+    # 检查文件是否存在
+    if not os.path.exists(excel_file):
+        print(f"错误: Excel文件不存在 - {excel_file}")
+        print("请修改 excel_file 配置为实际文件路径")
+        return
+    
+    # 创建转换器
+    converter = ExcelToWordReport(excel_file, word_file)
+    
+    # 加载Excel
+    converter.load_excel(sheet_name)
+    
+    # 解析数据
+    converter.parse_test_cases()
+    
+    # 生成Word报告
+    output_path = converter.generate_word_report()
+    
+    print(f"\n转换完成！输出文件: {output_path}")
+
+
+if __name__ == '__main__':
+    main()
