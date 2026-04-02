@@ -11,7 +11,7 @@ import pandas as pd
 from docx import Document
 from docx.shared import Pt, Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import os
@@ -204,14 +204,32 @@ def smart_match_field(field_name, excel_columns):
     return None
 
 
-def set_cell_font(cell, font_name='宋体', font_size=10.5, bold=False):
-    """设置单元格字体"""
+def set_cell_font(cell, font_name='宋体', font_size=10.5, bold=False, align_center=True):
+    """
+    设置单元格字体和对齐方式
+    
+    参数:
+        cell: 单元格对象
+        font_name: 字体名称
+        font_size: 字体大小
+        bold: 是否加粗
+        align_center: 是否居中对齐
+    """
+    # 设置字体
     for paragraph in cell.paragraphs:
         for run in paragraph.runs:
             run.font.name = font_name
             run.font.size = Pt(font_size)
             run.font.bold = bold
             run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        
+        # 设置段落水平居中
+        if align_center:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # 设置单元格垂直居中
+    if align_center:
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
 
 def set_table_border(table):
@@ -245,31 +263,64 @@ def add_heading_with_number(doc, text, level=1):
 def create_testcase_table(doc, data_dict):
     """
     创建测试用例表格
+    
+    结构：
+    - 第1行：开始日期 | 值 | 结束日期 | 值（4列）
+    - 第2行：样机数量 | 值 | 样机编号 | 值（4列）
+    - 第3行起：字段名 | 值（2列）
 
     参数:
         doc: Word文档对象
         data_dict: 数据字典 {字段名: 值}
     """
-    # 表格字段顺序
-    fields = ['开始日期', '结束日期', '样机数量', '样机编号', '试验机构',
-              '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
-
-    # 创建表格（11行2列：字段名 | 值）
-    table = doc.add_table(rows=len(fields), cols=2)
+    # 第一行和第二行字段（4列）
+    row1_fields = ['开始日期', '结束日期']
+    row2_fields = ['样机数量', '样机编号']
+    
+    # 后续行字段（2列）
+    remaining_fields = ['试验机构', '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
+    
+    # 计算总行数
+    total_rows = 2 + len(remaining_fields)
+    
+    # 创建表格（最多4列）
+    table = doc.add_table(rows=total_rows, cols=4)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_border(table)
-
-    for i, field in enumerate(fields):
-        # 第一列：字段名
-        cell0 = table.cell(i, 0)
-        cell0.text = field
-        set_cell_font(cell0, bold=True)
-
-        # 第二列：值
-        cell1 = table.cell(i, 1)
+    
+    # 第一行：开始日期 | 值 | 结束日期 | 值
+    table.cell(0, 0).text = '开始日期'
+    set_cell_font(table.cell(0, 0), bold=True)
+    table.cell(0, 1).text = str(data_dict.get('开始日期', ''))
+    set_cell_font(table.cell(0, 1))
+    table.cell(0, 2).text = '结束日期'
+    set_cell_font(table.cell(0, 2), bold=True)
+    table.cell(0, 3).text = str(data_dict.get('结束日期', ''))
+    set_cell_font(table.cell(0, 3))
+    
+    # 第二行：样机数量 | 值 | 样机编号 | 值
+    table.cell(1, 0).text = '样机数量'
+    set_cell_font(table.cell(1, 0), bold=True)
+    table.cell(1, 1).text = str(data_dict.get('样机数量', ''))
+    set_cell_font(table.cell(1, 1))
+    table.cell(1, 2).text = '样机编号'
+    set_cell_font(table.cell(1, 2), bold=True)
+    table.cell(1, 3).text = str(data_dict.get('样机编号', ''))
+    set_cell_font(table.cell(1, 3))
+    
+    # 第三行起：字段名占1列，值合并3列
+    for i, field in enumerate(remaining_fields):
+        row_idx = i + 2
+        
+        # 合并第2-4列（值占3列）
+        table.cell(row_idx, 1).merge(table.cell(row_idx, 2)).merge(table.cell(row_idx, 3))
+        
+        # 填充内容
+        table.cell(row_idx, 0).text = field
+        set_cell_font(table.cell(row_idx, 0), bold=True)
         value = data_dict.get(field, '')
-        cell1.text = str(value) if value else ''
-        set_cell_font(cell1)
+        table.cell(row_idx, 1).text = str(value) if value else ''
+        set_cell_font(table.cell(row_idx, 1))
 
     doc.add_paragraph()  # 空行
     return table
@@ -629,32 +680,25 @@ class ExcelToWordReport:
             cell.text = header
             set_cell_font(cell, bold=True)
 
-        # 数据行
+        # 数据行（相同试验分类只显示一次）
+        current_category = None
         for row_idx, item in enumerate(self.summary_data):
+            category = item.get('试验分类', '')
+            
             for col_idx, header in enumerate(headers):
                 cell = summary_table.cell(row_idx + 1, col_idx)
-                cell.text = str(item.get(header, ''))
-                set_cell_font(cell)
-        
-        # 合并相同试验分类的单元格
-        if self.summary_data:
-            current_category = None
-            merge_start = 1
-            
-            for row_idx, item in enumerate(self.summary_data, 1):
-                category = item.get('试验分类', '')
                 
-                if category != current_category:
-                    # 如果是新分类，合并前一个分类的单元格
-                    if current_category is not None and row_idx > merge_start + 1:
-                        # 合并试验分类列（第2列，索引1）
-                        summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
-                    current_category = category
-                    merge_start = row_idx
-            
-            # 合并最后一个分类
-            if len(self.summary_data) > 1 and merge_start < len(self.summary_data):
-                summary_table.cell(merge_start, 1).merge(summary_table.cell(len(self.summary_data), 1))
+                # 试验分类列：只在第一次出现时显示
+                if header == '试验分类':
+                    if category == current_category:
+                        cell.text = ''  # 相同分类不显示
+                    else:
+                        cell.text = category
+                        current_category = category
+                else:
+                    cell.text = str(item.get(header, ''))
+                
+                set_cell_font(cell)
 
         doc.add_paragraph()
 
@@ -932,22 +976,24 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
                         cell.text = str(item.get(header, ''))
                         set_cell_font(cell)
                 
-                # 合并相同试验分类的单元格
-                if len(converter.summary_data) > 1:
-                    current_category = None
-                    merge_start = 1
+                # 相同试验分类只显示一次
+                current_category = None
+                for row_idx, item in enumerate(converter.summary_data):
+                    category = item.get('试验分类', '')
                     
-                    for row_idx, item in enumerate(converter.summary_data, 1):
-                        category = item.get('试验分类', '')
+                    for col_idx, header in enumerate(headers):
+                        cell = summary_table.cell(row_idx + 1, col_idx)
                         
-                        if category != current_category:
-                            if current_category is not None and row_idx > merge_start + 1:
-                                summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
-                            current_category = category
-                            merge_start = row_idx
-                    
-                    if merge_start < len(converter.summary_data):
-                        summary_table.cell(merge_start, 1).merge(summary_table.cell(len(converter.summary_data), 1))
+                        if header == '试验分类':
+                            if category == current_category:
+                                cell.text = ''
+                            else:
+                                cell.text = category
+                                current_category = category
+                        else:
+                            cell.text = str(item.get(header, ''))
+                        
+                        set_cell_font(cell)
             
             # 添加测试数据
             if converter.big_cases:
