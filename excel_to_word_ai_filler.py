@@ -13,9 +13,15 @@ from openai import OpenAI
 
 
 # ==================== 配置区域 ====================
-OPENAI_API_KEY = ""  # 在这里填入你的OpenAI API Key
-OPENAI_BASE_URL = None  # 如果用代理，填入base_url，如 "https://api.openai.com/v1"
-MODEL = "gpt-4o-mini"  # 使用的模型，gpt-4o-mini便宜快速
+# OpenAI配置
+OPENAI_API_KEY = ""  # 在这里填入你的API Key
+OPENAI_BASE_URL = None  # 如果用代理，填入base_url
+MODEL = "gpt-4o-mini"  # 使用的模型
+
+# 通义千问配置（推荐国内用户使用）
+# OPENAI_API_KEY = "sk-xxx"  # 你的通义千问API Key
+# OPENAI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+# MODEL = "qwen-turbo"  # 可选: qwen-turbo, qwen-plus, qwen-max
 # ================================================
 
 
@@ -272,10 +278,22 @@ def main():
     word_template = r"D:\AI\template.docx"  # Word模板路径
     output_file = None  # 输出路径，None表示自动生成
     
-    # OpenAI配置
-    api_key = ""  # 在这里填入你的API Key
-    base_url = None  # 代理地址，如 "https://api.openai.com/v1"
-    model = "gpt-4o-mini"
+    # ===== AI配置（三选一）=====
+    # 方式1: OpenAI官方
+    # api_key = "sk-xxx"
+    # base_url = "https://api.openai.com/v1"
+    # model = "gpt-4o-mini"
+    
+    # 方式2: 通义千问（推荐国内用户）
+    api_key = "sk-xxx"  # 填入你的通义千问API Key
+    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model = "qwen-turbo"  # 可选: qwen-turbo, qwen-plus, qwen-max
+    
+    # 方式3: 其他OpenAI兼容服务
+    # api_key = "你的key"
+    # base_url = "你的服务地址"
+    # model = "模型名"
+    # ====================
     
     # 是否手动调整映射
     manual_adjust = True  # True=交互式调整，False=全自动
