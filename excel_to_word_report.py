@@ -481,12 +481,145 @@ class ExcelToWordReport:
         return self.word_path
 
 
+def list_sheets(excel_path):
+    """
+    列出Excel中所有sheet名称
+    
+    参数:
+        excel_path: Excel文件路径
+    
+    返回:
+        sheet名称列表
+    """
+    from openpyxl import load_workbook
+    wb = load_workbook(excel_path, read_only=True)
+    sheets = wb.sheetnames
+    wb.close()
+    return sheets
+
+
+def process_sheets(excel_path, sheets=None, output_dir=None):
+    """
+    处理指定的sheet，生成Word报告
+    
+    参数:
+        excel_path: Excel文件路径
+        sheets: 要处理的sheet列表，可以是：
+                - None: 处理所有sheet
+                - int: 单个sheet索引
+                - str: 单个sheet名称
+                - list: [0, 1, 2] 或 ["Sheet1", "Sheet2"]
+        output_dir: 输出目录，None表示与Excel同目录
+    
+    返回:
+        生成的Word文件路径列表
+    """
+    # 获取所有sheet名称
+    all_sheets = list_sheets(excel_path)
+    print(f"Excel包含 {len(all_sheets)} 个sheet: {all_sheets}")
+    
+    # 确定要处理的sheet
+    sheets_to_process = []
+    
+    if sheets is None:
+        # 处理所有sheet
+        sheets_to_process = all_sheets
+    elif isinstance(sheets, int):
+        # 单个索引
+        if 0 <= sheets < len(all_sheets):
+            sheets_to_process = [all_sheets[sheets]]
+        else:
+            print(f"错误: sheet索引 {sheets} 超出范围 (0-{len(all_sheets)-1})")
+            return []
+    elif isinstance(sheets, str):
+        # 单个名称
+        if sheets in all_sheets:
+            sheets_to_process = [sheets]
+        else:
+            print(f"错误: 未找到名为 '{sheets}' 的sheet")
+            return []
+    elif isinstance(sheets, list):
+        # 列表
+        for s in sheets:
+            if isinstance(s, int):
+                if 0 <= s < len(all_sheets):
+                    sheets_to_process.append(all_sheets[s])
+                else:
+                    print(f"警告: sheet索引 {s} 超出范围，跳过")
+            elif isinstance(s, str):
+                if s in all_sheets:
+                    sheets_to_process.append(s)
+                else:
+                    print(f"警告: 未找到名为 '{s}' 的sheet，跳过")
+    else:
+        print(f"错误: 不支持的sheets参数类型: {type(sheets)}")
+        return []
+    
+    # 去重并保持顺序
+    sheets_to_process = list(dict.fromkeys(sheets_to_process))
+    print(f"将处理 {len(sheets_to_process)} 个sheet: {sheets_to_process}")
+    
+    # 确定输出目录
+    if output_dir is None:
+        output_dir = os.path.dirname(excel_path)
+    
+    # 处理每个sheet
+    output_files = []
+    base_name = os.path.splitext(os.path.basename(excel_path))[0]
+    
+    for sheet_name in sheets_to_process:
+        print(f"\n{'='*50}")
+        print(f"正在处理sheet: {sheet_name}")
+        print('='*50)
+        
+        # 生成输出文件名
+        if len(sheets_to_process) == 1:
+            word_path = os.path.join(output_dir, f"{base_name}_报告.docx")
+        else:
+            word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
+        
+        # 创建转换器
+        converter = ExcelToWordReport(excel_path, word_path)
+        
+        try:
+            # 加载Excel
+            converter.load_excel(sheet_name)
+            
+            # 解析数据
+            converter.parse_test_cases()
+            
+            # 生成Word报告
+            output_path = converter.generate_word_report()
+            output_files.append(output_path)
+            
+        except Exception as e:
+            print(f"处理sheet '{sheet_name}' 时出错: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    return output_files
+
+
 def main():
     """主函数"""
     # ===== 配置区域 =====
     excel_file = r"D:\AI\test_data.xlsx"  # Excel输入文件路径
-    word_file = None  # Word输出路径，None表示自动生成
-    sheet_name = 0  # 工作表，默认第一个
+    output_dir = None  # 输出目录，None表示与Excel同目录
+    
+    # 要处理的sheet配置（三选一或组合）:
+    # 方式1: 处理所有sheet
+    # sheets = None
+    
+    # 方式2: 处理单个sheet（索引或名称）
+    # sheets = 0  # 第一个sheet
+    # sheets = "Sheet1"  # 按名称
+    
+    # 方式3: 处理多个sheet
+    # sheets = [0, 1, 2]  # 按索引
+    # sheets = ["Sheet1", "Sheet2"]  # 按名称
+    # sheets = [0, "Sheet2", 2]  # 混合
+    
+    sheets = None  # 默认处理所有sheet
     # ====================
     
     # 检查文件是否存在
@@ -495,19 +628,20 @@ def main():
         print("请修改 excel_file 配置为实际文件路径")
         return
     
-    # 创建转换器
-    converter = ExcelToWordReport(excel_file, word_file)
+    # 先列出所有sheet
+    all_sheets = list_sheets(excel_file)
+    print(f"\n可用sheet列表:")
+    for i, name in enumerate(all_sheets):
+        print(f"  [{i}] {name}")
     
-    # 加载Excel
-    converter.load_excel(sheet_name)
+    # 处理sheet
+    output_files = process_sheets(excel_file, sheets, output_dir)
     
-    # 解析数据
-    converter.parse_test_cases()
-    
-    # 生成Word报告
-    output_path = converter.generate_word_report()
-    
-    print(f"\n转换完成！输出文件: {output_path}")
+    # 输出结果
+    print(f"\n{'='*50}")
+    print(f"转换完成！共生成 {len(output_files)} 个报告:")
+    for f in output_files:
+        print(f"  - {f}")
 
 
 if __name__ == '__main__':
