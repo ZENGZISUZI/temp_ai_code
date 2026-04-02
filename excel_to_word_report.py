@@ -278,16 +278,42 @@ class ExcelToWordReport:
             return [], None, None
 
         merged_ranges = []
+        header_merge_end = header_row  # 标题行合并的结束行
+        
+        # 先找到标题行的合并范围（可能是行合并或列合并）
         for merged_range in ws.merged_cells.ranges:
-            # 只关心试验项目列的合并单元格，且跳过标题行
-            if merged_range.min_col == test_col and merged_range.min_row > header_row:
+            if merged_range.min_row == header_row and merged_range.min_col <= test_col <= merged_range.max_col:
+                header_merge_end = merged_range.max_row
+                print(f"标题行合并范围: 第{header_row}-{header_merge_end}行")
+                break
+        
+        # 检测大用例：查找标题行下方的行合并单元格
+        # 大用例名字在试验项目列，通过行合并（多行合并成一格）来标识
+        for merged_range in ws.merged_cells.ranges:
+            # 行合并：min_row != max_row，且在试验项目列
+            if merged_range.min_col == test_col and merged_range.min_row > header_merge_end:
                 start_row = merged_range.min_row
                 end_row = merged_range.max_row
-                # 获取合并单元格的值（大用例名字）
                 cell_value = ws.cell(row=start_row, column=test_col).value
                 if cell_value and str(cell_value).strip():
                     merged_ranges.append((start_row, end_row, str(cell_value).strip()))
-                    print(f"找到大用例: 第{start_row}行, 名字: {cell_value}")
+                    print(f"找到大用例(行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
+        
+        # 如果没找到行合并，尝试检测列合并（横向合并）
+        if not merged_ranges:
+            print("未检测到行合并，尝试检测列合并...")
+            for row_idx in range(header_merge_end + 1, ws.max_row + 1):
+                for merged_range in ws.merged_cells.ranges:
+                    # 列合并：min_col != max_col，且包含试验项目列
+                    if (merged_range.min_row == row_idx and 
+                        merged_range.min_col <= test_col <= merged_range.max_col and
+                        merged_range.min_col != merged_range.max_col):
+                        cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
+                        if cell_value and str(cell_value).strip():
+                            # 用行号作为标识，合并范围结束行作为小用例开始
+                            merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
+                            print(f"找到大用例(列合并): 第{row_idx}行, 列{merged_range.min_col}-{merged_range.max_col}, 名字: {cell_value}")
+                        break
 
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
