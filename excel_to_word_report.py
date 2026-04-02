@@ -192,6 +192,7 @@ class ExcelToWordReport:
         self.overview_data = {}  # 概述数据
         self.big_cases = []  # 大用例列表 [{'name': 'aaaa', 'small_cases': [...]}]
         self.summary_data = []  # 汇总数据
+        self.col_name_to_idx = {}  # 列名到索引的映射
         
     def load_excel(self, sheet_name=0):
         """加载Excel文件"""
@@ -201,11 +202,14 @@ class ExcelToWordReport:
         print(f"检测到列名: {self.excel_columns[:10]}...")  # 显示前10个
         
     def find_test_project_column(self):
-        """找到"试验项目"列"""
-        for i, col in enumerate(self.df.iloc[0]):
-            if pd.notna(col) and '试验项目' in str(col):
-                return i
-        return None
+        """找到"试验项目"列（在所有行中搜索）"""
+        # 在所有行中搜索"试验项目"列名
+        for row_idx in range(len(self.df)):
+            for col_idx, cell in enumerate(self.df.iloc[row_idx]):
+                if pd.notna(cell) and '试验项目' in str(cell):
+                    print(f"找到'试验项目'列: 第{row_idx + 1}行, 第{col_idx + 1}列")
+                    return col_idx, row_idx  # 返回列索引和标题行索引
+        return None, None
     
     def find_merged_cells_info(self):
         """
@@ -218,16 +222,23 @@ class ExcelToWordReport:
         wb = load_workbook(self.excel_path)
         ws = wb.active
         
-        # 找到试验项目列
+        # 找到试验项目列（在所有行中搜索）
         test_col = None
-        for cell in ws[1]:
-            if cell.value and '试验项目' in str(cell.value):
-                test_col = cell.column
+        header_row = None
+        for row_idx in range(1, ws.max_row + 1):
+            for col_idx in range(1, ws.max_column + 1):
+                cell_value = ws.cell(row=row_idx, column=col_idx).value
+                if cell_value and '试验项目' in str(cell_value):
+                    test_col = col_idx
+                    header_row = row_idx
+                    print(f"找到'试验项目'列: 第{row_idx}行, 第{col_idx}列")
+                    break
+            if test_col:
                 break
         
         if not test_col:
             print("未找到'试验项目'列")
-            return []
+            return [], None, None
         
         merged_ranges = []
         for merged_range in ws.merged_cells.ranges:
@@ -242,7 +253,7 @@ class ExcelToWordReport:
         
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
-        return merged_ranges, test_col
+        return merged_ranges, test_col, header_row
     
     def parse_overview_data(self, big_case_start_row):
         """
@@ -274,7 +285,7 @@ class ExcelToWordReport:
     
     def parse_test_cases(self):
         """解析测试用例（大用例和小用例）"""
-        merged_ranges, test_col = self.find_merged_cells_info()
+        merged_ranges, test_col, header_row = self.find_merged_cells_info()
         
         if not merged_ranges:
             print("未检测到合并单元格，尝试其他方式解析...")
@@ -285,6 +296,9 @@ class ExcelToWordReport:
         # 解析概述数据（第一个大用例之前）
         first_big_case_row = merged_ranges[0][0]
         self.parse_overview_data(first_big_case_row)
+        
+        # 建立列名到索引的映射（使用标题行）
+        self.build_column_mapping(header_row)
         
         # 解析大用例和小用例
         for i, (start_row, end_row, big_case_name) in enumerate(merged_ranges):
@@ -301,7 +315,7 @@ class ExcelToWordReport:
                     row_data = self.df.iloc[row_idx - 1]  # pandas索引从0开始
                     small_case_name = row_data.iloc[test_col - 1] if test_col else None
                     
-                    if pd.notna(small_case_name):
+                    if pd.notna(small_case_name) and str(small_case_name).strip():
                         small_case = {
                             'name': str(small_case_name),
                             'data': self.extract_testcase_data(row_data)
@@ -320,12 +334,36 @@ class ExcelToWordReport:
         
         print(f"解析完成: {len(self.big_cases)} 个大用例, 共 {len(self.summary_data)} 个小用例")
     
+    def build_column_mapping(self, header_row):
+        """
+        建立列名到索引的映射
+        
+        参数:
+            header_row: 标题行号（openpyxl格式，从1开始）
+        """
+        self.col_name_to_idx = {}
+        
+        # 使用openpyxl读取标题行
+        from openpyxl import load_workbook
+        wb = load_workbook(self.excel_path)
+        ws = wb.active
+        
+        for col_idx in range(1, ws.max_column + 1):
+            cell_value = ws.cell(row=header_row, column=col_idx).value
+            if cell_value:
+                self.col_name_to_idx[str(cell_value).strip()] = col_idx - 1  # 转为pandas索引（从0开始）
+        
+        print(f"列名映射: {list(self.col_name_to_idx.keys())[:15]}...")
+    
     def parse_without_merge(self):
         """无合并单元格时的备用解析"""
-        test_col = self.find_test_project_column()
+        test_col, header_row = self.find_test_project_column()
         if test_col is None:
             print("无法找到试验项目列")
             return
+        
+        # 建立列名映射
+        self.build_column_mapping(header_row + 1 if header_row else 1)
         
         current_big_case = None
         
@@ -350,16 +388,18 @@ class ExcelToWordReport:
         """
         data = {}
         
-        # 建立列名到索引的映射
-        col_name_to_idx = {}
-        for idx, col_name in enumerate(self.df.iloc[0]):
-            if pd.notna(col_name):
-                col_name_to_idx[str(col_name)] = idx
+        # 如果没有列名映射，尝试建立
+        if not hasattr(self, 'col_name_to_idx') or not self.col_name_to_idx:
+            # 默认使用第一行作为标题
+            self.col_name_to_idx = {}
+            for idx, col_name in enumerate(self.df.iloc[0]):
+                if pd.notna(col_name):
+                    self.col_name_to_idx[str(col_name)] = idx
         
         # 智能匹配每个字段
         for field, keywords in TESTCASE_FIELD_MAPPING.items():
             for keyword in keywords:
-                for col_name, idx in col_name_to_idx.items():
+                for col_name, idx in self.col_name_to_idx.items():
                     if keyword in col_name:
                         value = row_data.iloc[idx] if idx < len(row_data) else None
                         if pd.notna(value):
