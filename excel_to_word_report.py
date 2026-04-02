@@ -680,25 +680,32 @@ class ExcelToWordReport:
             cell.text = header
             set_cell_font(cell, bold=True)
 
-        # 数据行（相同试验分类只显示一次）
-        current_category = None
+        # 数据行
         for row_idx, item in enumerate(self.summary_data):
-            category = item.get('试验分类', '')
-            
             for col_idx, header in enumerate(headers):
                 cell = summary_table.cell(row_idx + 1, col_idx)
-                
-                # 试验分类列：只在第一次出现时显示
-                if header == '试验分类':
-                    if category == current_category:
-                        cell.text = ''  # 相同分类不显示
-                    else:
-                        cell.text = category
-                        current_category = category
-                else:
-                    cell.text = str(item.get(header, ''))
-                
+                cell.text = str(item.get(header, ''))
                 set_cell_font(cell)
+        
+        # 合并相同试验分类的单元格
+        if self.summary_data:
+            current_category = None
+            merge_start = 1
+            
+            for row_idx, item in enumerate(self.summary_data, 1):
+                category = item.get('试验分类', '')
+                
+                if category != current_category:
+                    # 如果是新分类，合并前一个分类的单元格
+                    if current_category is not None and row_idx > merge_start + 1:
+                        # 合并试验分类列（第2列，索引1）
+                        summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                    current_category = category
+                    merge_start = row_idx
+            
+            # 合并最后一个分类
+            if len(self.summary_data) > 1 and merge_start < len(self.summary_data):
+                summary_table.cell(merge_start, 1).merge(summary_table.cell(len(self.summary_data), 1))
 
         doc.add_paragraph()
 
@@ -976,24 +983,22 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
                         cell.text = str(item.get(header, ''))
                         set_cell_font(cell)
                 
-                # 相同试验分类只显示一次
-                current_category = None
-                for row_idx, item in enumerate(converter.summary_data):
-                    category = item.get('试验分类', '')
+                # 合并相同试验分类的单元格
+                if len(converter.summary_data) > 1:
+                    current_category = None
+                    merge_start = 1
                     
-                    for col_idx, header in enumerate(headers):
-                        cell = summary_table.cell(row_idx + 1, col_idx)
+                    for row_idx, item in enumerate(converter.summary_data, 1):
+                        category = item.get('试验分类', '')
                         
-                        if header == '试验分类':
-                            if category == current_category:
-                                cell.text = ''
-                            else:
-                                cell.text = category
-                                current_category = category
-                        else:
-                            cell.text = str(item.get(header, ''))
-                        
-                        set_cell_font(cell)
+                        if category != current_category:
+                            if current_category is not None and row_idx > merge_start + 1:
+                                summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                            current_category = category
+                            merge_start = row_idx
+                    
+                    if merge_start < len(converter.summary_data):
+                        summary_table.cell(merge_start, 1).merge(summary_table.cell(len(converter.summary_data), 1))
             
             # 添加测试数据
             if converter.big_cases:
