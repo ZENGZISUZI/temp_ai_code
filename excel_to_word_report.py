@@ -279,14 +279,15 @@ class ExcelToWordReport:
 
         merged_ranges = []
         for merged_range in ws.merged_cells.ranges:
-            # 只关心试验项目列的合并单元格
-            if merged_range.min_col == test_col:
+            # 只关心试验项目列的合并单元格，且跳过标题行
+            if merged_range.min_col == test_col and merged_range.min_row > header_row:
                 start_row = merged_range.min_row
                 end_row = merged_range.max_row
-                # 获取合并单元格的值
+                # 获取合并单元格的值（大用例名字）
                 cell_value = ws.cell(row=start_row, column=test_col).value
-                if cell_value:
-                    merged_ranges.append((start_row, end_row, str(cell_value)))
+                if cell_value and str(cell_value).strip():
+                    merged_ranges.append((start_row, end_row, str(cell_value).strip()))
+                    print(f"找到大用例: 第{start_row}行, 名字: {cell_value}")
 
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
@@ -602,7 +603,7 @@ def list_sheets(excel_path):
             return xl.sheet_names
 
 
-def process_sheets(excel_path, sheets=None, output_dir=None):
+def process_sheets(excel_path, sheets=None, output_dir=None, merge=False):
     """
     处理指定的sheet，生成Word报告
 
@@ -614,6 +615,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None):
                 - str: 单个sheet名称
                 - list: [0, 1, 2] 或 ["Sheet1", "Sheet2"]
         output_dir: 输出目录，None表示与Excel同目录
+        merge: 是否合并多个sheet到一个Word文件
 
     返回:
         生成的Word文件路径列表
@@ -623,27 +625,42 @@ def process_sheets(excel_path, sheets=None, output_dir=None):
     print(f"Excel包含 {len(all_sheets)} 个sheet: {all_sheets}")
 
     # 确定要处理的sheet
+    sheets_to_process = _resolve_sheets(all_sheets, sheets)
+    
+    if not sheets_to_process:
+        return []
+
+    print(f"将处理 {len(sheets_to_process)} 个sheet: {sheets_to_process}")
+
+    # 确定输出目录
+    if output_dir is None:
+        output_dir = os.path.dirname(excel_path)
+
+    # 合并模式
+    if merge and len(sheets_to_process) > 1:
+        return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir)
+    
+    # 单独生成模式
+    return _generate_separate_reports(excel_path, sheets_to_process, output_dir)
+
+
+def _resolve_sheets(all_sheets, sheets):
+    """解析要处理的sheet列表"""
     sheets_to_process = []
 
     if sheets is None:
-        # 处理所有sheet
         sheets_to_process = all_sheets
     elif isinstance(sheets, int):
-        # 单个索引
         if 0 <= sheets < len(all_sheets):
             sheets_to_process = [all_sheets[sheets]]
         else:
             print(f"错误: sheet索引 {sheets} 超出范围 (0-{len(all_sheets)-1})")
-            return []
     elif isinstance(sheets, str):
-        # 单个名称
         if sheets in all_sheets:
             sheets_to_process = [sheets]
         else:
             print(f"错误: 未找到名为 '{sheets}' 的sheet")
-            return []
     elif isinstance(sheets, list):
-        # 列表
         for s in sheets:
             if isinstance(s, int):
                 if 0 <= s < len(all_sheets):
@@ -657,17 +674,12 @@ def process_sheets(excel_path, sheets=None, output_dir=None):
                     print(f"警告: 未找到名为 '{s}' 的sheet，跳过")
     else:
         print(f"错误: 不支持的sheets参数类型: {type(sheets)}")
-        return []
 
-    # 去重并保持顺序
-    sheets_to_process = list(dict.fromkeys(sheets_to_process))
-    print(f"将处理 {len(sheets_to_process)} 个sheet: {sheets_to_process}")
+    return list(dict.fromkeys(sheets_to_process))
 
-    # 确定输出目录
-    if output_dir is None:
-        output_dir = os.path.dirname(excel_path)
 
-    # 处理每个sheet
+def _generate_separate_reports(excel_path, sheets_to_process, output_dir):
+    """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
 
@@ -682,20 +694,12 @@ def process_sheets(excel_path, sheets=None, output_dir=None):
         else:
             word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
 
-        # 创建转换器
-        converter = ExcelToWordReport(excel_path, word_path)
-
         try:
-            # 加载Excel
+            converter = ExcelToWordReport(excel_path, word_path)
             converter.load_excel(sheet_name)
-
-            # 解析数据
             converter.parse_test_cases()
-
-            # 生成Word报告
             output_path = converter.generate_word_report()
             output_files.append(output_path)
-
         except Exception as e:
             print(f"处理sheet '{sheet_name}' 时出错: {e}")
             import traceback
@@ -704,13 +708,99 @@ def process_sheets(excel_path, sheets=None, output_dir=None):
     return output_files
 
 
+def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
+    """将多个sheet合并到一个Word文件"""
+    from docx import Document
+    from docx.oxml.ns import qn
+    
+    base_name = os.path.splitext(os.path.basename(excel_path))[0]
+    word_path = os.path.join(output_dir, f"{base_name}_合并报告.docx")
+    
+    # 创建合并文档
+    doc = Document()
+    doc.styles['Normal'].font.name = '宋体'
+    doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 添加总标题
+    title = doc.add_heading(f'{base_name} 测试报告', level=0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+    
+    print(f"\n{'='*50}")
+    print(f"合并模式: 将 {len(sheets_to_process)} 个sheet合并到一个Word")
+    print('='*50)
+    
+    for idx, sheet_name in enumerate(sheets_to_process):
+        print(f"\n正在处理sheet [{idx+1}/{len(sheets_to_process)}]: {sheet_name}")
+        
+        try:
+            # 创建临时转换器解析数据
+            converter = ExcelToWordReport(excel_path)
+            converter.load_excel(sheet_name)
+            converter.parse_test_cases()
+            
+            # 添加分页符（第一个sheet不分页）
+            if idx > 0:
+                doc.add_page_break()
+            
+            # 添加sheet标题
+            doc.add_heading(f'{idx+1} {sheet_name}', level=1)
+            
+            # 添加概述
+            doc.add_heading(f'{idx+1}.1 概述', level=2)
+            for field in ['产品信息', '试验信息', '工作模式', '测试仪器设备']:
+                doc.add_paragraph(f"{field}: {converter.overview_data.get(field, '（待填写）')}")
+            
+            # 添加试验结果汇总
+            if converter.summary_data:
+                doc.add_heading(f'{idx+1}.2 试验结果汇总', level=2)
+                summary_table = doc.add_table(rows=len(converter.summary_data) + 1, cols=4)
+                summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                set_table_border(summary_table)
+                
+                headers = ['序号', '试验分类', '试验项目', '测试结论']
+                for i, header in enumerate(headers):
+                    cell = summary_table.cell(0, i)
+                    cell.text = header
+                    set_cell_font(cell, bold=True)
+                
+                for row_idx, item in enumerate(converter.summary_data):
+                    for col_idx, header in enumerate(headers):
+                        cell = summary_table.cell(row_idx + 1, col_idx)
+                        cell.text = str(item.get(header, ''))
+                        set_cell_font(cell)
+            
+            # 添加测试数据
+            if converter.big_cases:
+                doc.add_heading(f'{idx+1}.3 测试数据', level=2)
+                for big_idx, big_case in enumerate(converter.big_cases):
+                    doc.add_heading(f'{idx+1}.3.{big_idx+1} {big_case["name"]}', level=3)
+                    for small_idx, small_case in enumerate(big_case['small_cases']):
+                        doc.add_heading(f'{idx+1}.3.{big_idx+1}.{small_idx+1} {small_case["name"]}', level=4)
+                        create_testcase_table(doc, small_case['data'])
+            
+            print(f"  ✓ {sheet_name} 处理完成")
+            
+        except Exception as e:
+            print(f"  ✗ 处理sheet '{sheet_name}' 时出错: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # 保存文档
+    doc.save(word_path)
+    print(f"\n{'='*50}")
+    print(f"合并报告已生成: {word_path}")
+    
+    return [word_path]
+
+
 def main():
     """主函数"""
     # ===== 配置区域 =====
     excel_file = r"D:\AI\test_data.xlsx"  # Excel输入文件路径
     output_dir = None  # 输出目录，None表示与Excel同目录
 
-    # 要处理的sheet配置（三选一或组合）:
+    # 要处理的sheet配置:
     # 方式1: 处理所有sheet
     # sheets = None
 
@@ -718,12 +808,17 @@ def main():
     # sheets = 0  # 第一个sheet
     # sheets = "Sheet1"  # 按名称
 
-    # 方式3: 处理多个sheet
+    # 方式3: 处理多个sheet（指定索引或名称）
     # sheets = [0, 1, 2]  # 按索引
     # sheets = ["Sheet1", "Sheet2"]  # 按名称
     # sheets = [0, "Sheet2", 2]  # 混合
 
     sheets = None  # 默认处理所有sheet
+    
+    # 合并模式配置:
+    # True: 多个sheet合并到一个Word文件
+    # False: 每个sheet生成单独的Word文件
+    merge = False
     # ====================
 
     # 检查文件是否存在
@@ -739,7 +834,7 @@ def main():
         print(f"  [{i}] {name}")
 
     # 处理sheet
-    output_files = process_sheets(excel_file, sheets, output_dir)
+    output_files = process_sheets(excel_file, sheets, output_dir, merge)
 
     # 输出结果
     print(f"\n{'='*50}")
