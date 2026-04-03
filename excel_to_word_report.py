@@ -1662,61 +1662,167 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
     return [word_path]
 
 
+def load_config(config_path):
+    """
+    从配置文件读取参数
+    
+    配置文件格式（每行一个配置，#开头为注释）：
+    excel_file=D:\AI\test_data.xlsx
+    logo_path=D:\AI\logo.png
+    report_number=RPT-2026-001
+    company_name=XX公司
+    report_name=测试报告
+    watermark_text=张三 to 李四
+    
+    参数:
+        config_path: 配置文件路径
+        
+    返回:
+        配置字典
+    """
+    config = {
+        'excel_file': r"D:\AI\test_data.xlsx",
+        'output_dir': None,
+        'logo_path': None,
+        'report_number': None,
+        'company_name': "公司",
+        'report_name': None,
+        'watermark_text': None,
+        'sheets': None,
+        'merge': False,
+    }
+    
+    if not os.path.exists(config_path):
+        print(f"配置文件不存在: {config_path}")
+        print("将使用默认配置")
+        return config
+    
+    with open(config_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            
+            # 跳过空行和注释
+            if not line or line.startswith('#'):
+                continue
+            
+            # 解析 key=value
+            if '=' in line:
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                # 处理特殊值
+                if value.lower() == 'none' or value == '':
+                    config[key] = None
+                elif value.lower() == 'true':
+                    config[key] = True
+                elif value.lower() == 'false':
+                    config[key] = False
+                elif key == 'sheets':
+                    # sheets可以是数字、字符串或列表
+                    if ',' in value:
+                        # 列表形式：0,1,2 或 Sheet1,Sheet2
+                        config[key] = [int(s.strip()) if s.strip().isdigit() else s.strip() for s in value.split(',')]
+                    elif value.isdigit():
+                        config[key] = int(value)
+                    else:
+                        config[key] = value
+                else:
+                    config[key] = value
+    
+    print(f"已从配置文件加载: {config_path}")
+    return config
+
+
+def create_default_config(config_path):
+    """
+    创建默认配置文件
+    
+    参数:
+        config_path: 配置文件路径
+    """
+    default_config = '''# Excel转Word报告配置文件
+# 每行一个配置，格式：key=value
+# #开头的行为注释，会被忽略
+
+# ===== 必填项 =====
+# Excel输入文件路径
+excel_file=D:\\AI\\test_data.xlsx
+
+# ===== 页眉页脚配置 =====
+# Logo图片路径（可选，None则不显示）
+logo_path=None
+
+# 报告编号（可选，None则自动生成）
+report_number=None
+
+# 公司名称（用于页脚保密信息）
+company_name=公司
+
+# 报告名称（页眉显示，None则使用文件名）
+report_name=None
+
+# ===== 水印配置 =====
+# 水印文字（可选，None则不添加水印）
+watermark_text=None
+
+# ===== Sheet配置 =====
+# 要处理的sheet（None=全部，数字=索引，字符串=名称，逗号分隔=多个）
+sheets=None
+
+# 合并模式（True=合并到一个Word，False=每个sheet单独生成）
+merge=False
+
+# ===== 输出配置 =====
+# 输出目录（None表示与Excel同目录）
+output_dir=None
+'''
+    
+    with open(config_path, 'w', encoding='utf-8') as f:
+        f.write(default_config)
+    
+    print(f"已创建默认配置文件: {config_path}")
+
+
 def main():
     """主函数"""
-    # ===== 配置区域 =====
-    excel_file = r"D:\AI\test_data.xlsx"  # Excel输入文件路径
-    output_dir = None  # 输出目录，None表示与Excel同目录
-
-    # ===== 页眉页脚配置 =====
-    logo_path = None  # Logo图片路径，如 r"D:\AI\logo.png"，None则不显示Logo
-    report_number = None  # 报告编号，None则自动生成（如 RPT20260403100000）
-    company_name = "公司"  # 公司名称，用于页脚保密信息
-    report_name = None  # 报告名称（页眉显示），None则使用文件名
-
-    # ===== 水印配置 =====
-    watermark_text = None  # 水印文字，如 "xxxx to xxxx"，None则不添加水印
-
-    # 要处理的sheet配置:
-    # 方式1: 处理所有sheet
-    # sheets = None
-
-    # 方式2: 处理单个sheet（索引或名称）
-    # sheets = 0  # 第一个sheet
-    # sheets = "Sheet1"  # 按名称
-
-    # 方式3: 处理多个sheet（指定索引或名称）
-    # sheets = [0, 1, 2]  # 按索引
-    # sheets = ["Sheet1", "Sheet2"]  # 按名称
-    # sheets = [0, "Sheet2", 2]  # 混合
-
-    sheets = None  # 默认处理所有sheet
+    # ===== 配置文件路径 =====
+    config_path = r"D:\AI\report_config.txt"
     
-    # 合并模式配置:
-    # True: 多个sheet合并到一个Word文件
-    # False: 每个sheet生成单独的Word文件
-    merge = False
-    # ====================
-
+    # 如果配置文件不存在，创建默认配置
+    if not os.path.exists(config_path):
+        create_default_config(config_path)
+        print("\n请修改配置文件后重新运行：")
+        print(f"  {config_path}")
+        return
+    
+    # 从配置文件加载参数
+    config = load_config(config_path)
+    
     # 检查文件是否存在
-    if not os.path.exists(excel_file):
-        print(f"错误: Excel文件不存在 - {excel_file}")
-        print("请修改 excel_file 配置为实际文件路径")
+    if not os.path.exists(config['excel_file']):
+        print(f"错误: Excel文件不存在 - {config['excel_file']}")
+        print("请修改配置文件中的 excel_file")
         return
 
     # 先列出所有sheet
-    all_sheets = list_sheets(excel_file)
+    all_sheets = list_sheets(config['excel_file'])
     print(f"\n可用sheet列表:")
     for i, name in enumerate(all_sheets):
         print(f"  [{i}] {name}")
 
-    # 处理sheet（传递页眉页脚和水印配置）
-    output_files = process_sheets(excel_file, sheets, output_dir, merge, 
-                                  logo_path=logo_path, 
-                                  report_number=report_number, 
-                                  company_name=company_name,
-                                  watermark_text=watermark_text,
-                                  report_name=report_name)
+    # 处理sheet
+    output_files = process_sheets(
+        config['excel_file'], 
+        config['sheets'], 
+        config['output_dir'], 
+        config['merge'], 
+        logo_path=config['logo_path'], 
+        report_number=config['report_number'], 
+        company_name=config['company_name'],
+        watermark_text=config['watermark_text'],
+        report_name=config['report_name']
+    )
 
     # 输出结果
     print(f"\n{'='*50}")
