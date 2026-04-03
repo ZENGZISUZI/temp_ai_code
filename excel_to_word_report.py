@@ -605,6 +605,67 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
     return heading
 
 
+def add_bookmark(paragraph, bookmark_name):
+    """
+    为段落添加书签
+    
+    参数:
+        paragraph: 段落对象
+        bookmark_name: 书签名称
+    """
+    tag = paragraph._p
+    bookmark_start = OxmlElement('w:bookmarkStart')
+    bookmark_start.set(qn('w:id'), str(hash(bookmark_name) % 10000))
+    bookmark_start.set(qn('w:name'), bookmark_name)
+    
+    bookmark_end = OxmlElement('w:bookmarkEnd')
+    bookmark_end.set(qn('w:id'), str(hash(bookmark_name) % 10000))
+    
+    tag.insert(0, bookmark_start)
+    tag.append(bookmark_end)
+
+
+def add_hyperlink(paragraph, text, bookmark_name, font_name='微软雅黑', font_size=10.5):
+    """
+    添加超链接到段落（指向书签）
+    
+    参数:
+        paragraph: 段落对象
+        text: 显示文字
+        bookmark_name: 目标书签名称
+        font_name: 字体名称
+        font_size: 字体大小
+    """
+    # 创建超链接元素
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set(qn('w:anchor'), bookmark_name)
+    
+    # 创建run元素
+    new_run = OxmlElement('w:r')
+    
+    # 设置字体
+    rPr = OxmlElement('w:rPr')
+    rFonts = OxmlElement('w:rFonts')
+    rFonts.set(qn('w:ascii'), font_name)
+    rFonts.set(qn('w:eastAsia'), font_name)
+    rPr.append(rFonts)
+    
+    # 设置字号
+    sz = OxmlElement('w:sz')
+    sz.set(qn('w:val'), str(int(font_size * 2)))  # Word字号单位是半磅
+    rPr.append(sz)
+    
+    new_run.append(rPr)
+    
+    # 设置文字
+    text_elem = OxmlElement('w:t')
+    text_elem.text = text
+    new_run.append(text_elem)
+    
+    hyperlink.append(new_run)
+    paragraph._p.append(hyperlink)
+
+
 def setup_heading_styles(doc, font_config=None):
     """
     设置Word标题样式（确保导航窗格能识别）
@@ -1136,71 +1197,64 @@ class ExcelToWordReport:
         
         doc.add_paragraph()  # 空行
         
-        # 手动生成目录内容（带页码占位符）
+        # 生成目录项（带超链接）
         toc_items = [
-            ('1 概述', 1),
-            ('  1.1 产品信息', 2),
-            ('  1.2 试验信息', 2),
-            ('  1.3 工作模式', 2),
-            ('  1.4 测试仪器设备', 2),
-            ('2 试验结果汇总', 1),
-            ('3 测试数据', 1),
+            ('1 概述', 'toc_1', 1),
+            ('1.1 产品信息', 'toc_1_1', 2),
+            ('1.2 试验信息', 'toc_1_2', 2),
+            ('1.3 工作模式', 'toc_1_3', 2),
+            ('1.4 测试仪器设备', 'toc_1_4', 2),
+            ('2 试验结果汇总', 'toc_2', 1),
+            ('3 测试数据', 'toc_3', 1),
         ]
         
         # 添加大用例和小用例到目录
         for big_idx, big_case in enumerate(self.big_cases, 1):
             clean_name = clean_case_number(big_case["name"])
-            toc_items.append((f'  3.{big_idx} {clean_name}', 2))
+            toc_items.append((f'3.{big_idx} {clean_name}', f'toc_3_{big_idx}', 2))
             for small_idx, small_case in enumerate(big_case['small_cases'], 1):
                 clean_small_name = clean_case_number(small_case["name"])
-                toc_items.append((f'    3.{big_idx}.{small_idx} {clean_small_name}', 3))
+                toc_items.append((f'3.{big_idx}.{small_idx} {clean_small_name}', f'toc_3_{big_idx}_{small_idx}', 3))
         
-        # 输出目录（带点号和页码占位符）
-        for item_text, level in toc_items:
+        # 输出目录（带超链接）
+        for item_text, bookmark_name, level in toc_items:
             toc_para = doc.add_paragraph()
-            toc_run = toc_para.add_run(item_text)
-            toc_run.font.name = font_name
-            toc_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            toc_run.font.size = Pt(body_size)
-            toc_run.font.color.rgb = RGBColor(0, 0, 0)
             
-            # 添加点号和页码占位符
-            dots_run = toc_para.add_run(' ' + '.' * 50 + ' ')
-            dots_run.font.name = font_name
-            dots_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            dots_run.font.size = Pt(body_size)
-            dots_run.font.color.rgb = RGBColor(0, 0, 0)
+            # 根据级别添加缩进
+            indent = '    ' * (level - 1)
             
-            # 页码占位符（实际页码需要Word更新域才能正确显示）
-            page_run = toc_para.add_run('1')
-            page_run.font.name = font_name
-            page_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            page_run.font.size = Pt(body_size)
-            page_run.font.color.rgb = RGBColor(0, 0, 0)
+            # 添加超链接
+            add_hyperlink(toc_para, indent + item_text, bookmark_name, font_name, body_size)
         
         doc.add_paragraph()  # 空行
 
         # ===== 1. 概述（大标题）=====
-        add_heading_with_number(doc, '1 概述', level=1, font_config=self.font_config)
+        h1 = add_heading_with_number(doc, '1 概述', level=1, font_config=self.font_config)
+        add_bookmark(h1, 'toc_1')
 
         # 1.1 产品信息（次标题）
-        add_heading_with_number(doc, '1.1 产品信息', level=2, font_config=self.font_config)
+        h1_1 = add_heading_with_number(doc, '1.1 产品信息', level=2, font_config=self.font_config)
+        add_bookmark(h1_1, 'toc_1_1')
         add_body_paragraph(doc, self.overview_data.get('产品信息', '（待填写）'), font_config=self.font_config)
 
         # 1.2 试验信息（次标题）
-        add_heading_with_number(doc, '1.2 试验信息', level=2, font_config=self.font_config)
+        h1_2 = add_heading_with_number(doc, '1.2 试验信息', level=2, font_config=self.font_config)
+        add_bookmark(h1_2, 'toc_1_2')
         add_body_paragraph(doc, self.overview_data.get('试验信息', '（待填写）'), font_config=self.font_config)
 
         # 1.3 工作模式（次标题）
-        add_heading_with_number(doc, '1.3 工作模式', level=2, font_config=self.font_config)
+        h1_3 = add_heading_with_number(doc, '1.3 工作模式', level=2, font_config=self.font_config)
+        add_bookmark(h1_3, 'toc_1_3')
         add_body_paragraph(doc, self.overview_data.get('工作模式', '（待填写）'), font_config=self.font_config)
 
         # 1.4 测试仪器设备（次标题）
-        add_heading_with_number(doc, '1.4 测试仪器设备', level=2, font_config=self.font_config)
+        h1_4 = add_heading_with_number(doc, '1.4 测试仪器设备', level=2, font_config=self.font_config)
+        add_bookmark(h1_4, 'toc_1_4')
         add_body_paragraph(doc, self.overview_data.get('测试仪器设备', '（待填写）'), font_config=self.font_config)
 
         # ===== 2. 试验结果汇总（大标题）=====
-        add_heading_with_number(doc, '2 试验结果汇总', level=1, font_config=self.font_config)
+        h2 = add_heading_with_number(doc, '2 试验结果汇总', level=1, font_config=self.font_config)
+        add_bookmark(h2, 'toc_2')
 
         # 创建汇总表格
         summary_table = doc.add_table(rows=len(self.summary_data) + 1, cols=4)
@@ -1255,7 +1309,8 @@ class ExcelToWordReport:
         doc.add_paragraph()
 
         # ===== 3. 测试数据 =====
-        add_heading_with_number(doc, '3 测试数据', level=1, font_config=self.font_config)
+        h3 = add_heading_with_number(doc, '3 测试数据', level=1, font_config=self.font_config)
+        add_bookmark(h3, 'toc_3')
         
         # 验证大用例章节位置
         print("\n验证大用例章节位置...")
@@ -1268,11 +1323,13 @@ class ExcelToWordReport:
 
         for big_idx, big_case in enumerate(self.big_cases, 1):
             clean_name = clean_case_number(big_case["name"])
-            add_heading_with_number(doc, f'3.{big_idx} {clean_name}', level=2, font_config=self.font_config)
+            h3_big = add_heading_with_number(doc, f'3.{big_idx} {clean_name}', level=2, font_config=self.font_config)
+            add_bookmark(h3_big, f'toc_3_{big_idx}')
 
             for small_idx, small_case in enumerate(big_case['small_cases'], 1):
                 clean_small_name = clean_case_number(small_case["name"])
-                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3, font_config=self.font_config)
+                h3_small = add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3, font_config=self.font_config)
+                add_bookmark(h3_small, f'toc_3_{big_idx}_{small_idx}')
                 create_testcase_table(doc, small_case['data'], font_config=self.font_config)
 
         # 保存文档
