@@ -1124,14 +1124,17 @@ class ExcelToWordReport:
             add_watermark_to_docx(doc, self.watermark_text)
 
         # ===== 目录 =====
-        # 目录标题
-        toc_heading = doc.add_heading('目录', level=1)
-        for run in toc_heading.runs:
-            run.font.name = font_name
-            run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            run.font.size = Pt(self.font_config.get('title1_size', 16))
-            run.font.bold = self.font_config.get('title1_bold', True)
-            run.font.color.rgb = RGBColor(0, 0, 0)
+        # 目录标题（居中，不作为标题样式）
+        toc_title = doc.add_paragraph()
+        toc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        toc_run = toc_title.add_run('目录')
+        toc_run.font.name = font_name
+        toc_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        toc_run.font.size = Pt(self.font_config.get('title1_size', 16))
+        toc_run.font.bold = self.font_config.get('title1_bold', True)
+        toc_run.font.color.rgb = RGBColor(0, 0, 0)
+        
+        doc.add_paragraph()  # 空行
         
         # 手动生成目录内容
         toc_items = [
