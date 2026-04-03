@@ -613,6 +613,8 @@ def setup_heading_styles(doc, font_config=None):
         doc: Word文档对象
         font_config: 字体配置字典
     """
+    from docx.shared import RGBColor
+    
     default_config = {
         'font_name': '微软雅黑',
         'title1_size': 16,
@@ -631,6 +633,7 @@ def setup_heading_styles(doc, font_config=None):
     style1.font.name = config['font_name']
     style1.font.size = Pt(config['title1_size'])
     style1.font.bold = config['title1_bold']
+    style1.font.color.rgb = RGBColor(0, 0, 0)  # 黑色
     style1._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
     
     # 设置 Heading 2 样式
@@ -638,6 +641,7 @@ def setup_heading_styles(doc, font_config=None):
     style2.font.name = config['font_name']
     style2.font.size = Pt(config['title2_size'])
     style2.font.bold = config['title2_bold']
+    style2.font.color.rgb = RGBColor(0, 0, 0)  # 黑色
     style2._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
     
     # 设置 Heading 3 样式
@@ -645,6 +649,7 @@ def setup_heading_styles(doc, font_config=None):
     style3.font.name = config['font_name']
     style3.font.size = Pt(config['title3_size'])
     style3.font.bold = config['title3_bold']
+    style3.font.color.rgb = RGBColor(0, 0, 0)  # 黑色
     style3._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
 
 
