@@ -483,301 +483,19 @@ def add_total_pages_field(paragraph):
     run._r.append(fldChar2)
 
 
-def add_watermark(doc, watermark_text):
-    """
-    为文档添加斜向水印（从左下角到右上角）
-    
-    参数:
-        doc: Word文档对象
-        watermark_text: 水印文字，如 "xxxx to xxxx"
-    """
-    from docx.oxml.ns import nsmap
-    
-    # 获取或创建文档的设置
-    for section in doc.sections:
-        # 获取节的XML
-        sectPr = section._sectPr
-        
-        # 创建水印
-        watermark = create_watermark_element(watermark_text)
-        
-        # 将水印添加到节的设置中
-        sectPr.append(watermark)
-
-
-def create_watermark_element(watermark_text):
-    """
-    创建水印XML元素
-    
-    参数:
-        watermark_text: 水印文字
-        
-    返回:
-        水印XML元素
-    """
-    # 水印使用 v:background 元素
-    # 需要定义VML命名空间
-    
-    # 创建一个包含水印的段落，放在页眉中
-    # 使用 w:background 方式更简单
-    
-    # 方法：在文档中添加一个全透明的背景图片文字
-    # 这里使用更简单的方式：通过修改页眉添加斜向文字
-    
-    # 创建 watermark 元素
-    watermark = OxmlElement('w:background')
-    watermark.set(qn('w:color'), 'FFFFFF')  # 白色背景
-    
-    # 实际上python-docx不支持直接添加水印，需要用其他方式
-    # 我们使用在页眉中添加斜向文字的方式模拟水印
-    
-    return watermark
-
-
-def add_diagonal_watermark(doc, watermark_text):
-    """
-    添加斜向水印（通过页眉实现）
-    
-    参数:
-        doc: Word文档对象
-        watermark_text: 水印文字
-    """
-    # 由于python-docx不直接支持水印，我们通过以下方式实现：
-    # 在页眉中添加一个无边框的文本框，旋转45度
-    
-    # 获取第一个节
-    section = doc.sections[0]
-    header = section.header
-    
-    # 创建一个表格作为水印容器（无边框，透明背景）
-    # 放置在页面中央，文字斜向显示
-    
-    # 实际上，Word水印需要使用特定的XML结构
-    # 这里我们使用VML图形来实现
-    
-    # 添加VML命名空间的水印
-    _add_vml_watermark(header, watermark_text)
-
-
-def _add_vml_watermark(header, watermark_text):
-    """
-    使用VML添加水印到页眉
-    
-    参数:
-        header: 页眉对象
-        watermark_text: 水印文字
-    """
-    # 在页眉中添加一个段落，包含水印图形
-    para = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
-    
-    # 创建一个包含VML图形的run
-    # VML水印需要特定的XML结构
-    
-    # 由于python-docx的限制，我们使用另一种方法：
-    # 在文档级别添加水印
-    
-    pass  # VML方法复杂，改用其他方式
-
-
-def add_watermark_to_document(doc, watermark_text):
-    """
-    为整个文档添加水印（修改文档XML）
-    
-    参数:
-        doc: Word文档对象
-        watermark_text: 水印文字
-    """
-    # 获取文档的settings部分
-    from docx.parts.settings import SettingsPart
-    
-    # 遍历所有节，为每个节添加水印
-    for section in doc.sections:
-        sectPr = section._sectPr
-        
-        # 检查是否已有水印
-        existing_watermark = sectPr.find(qn('w:background'))
-        if existing_watermark is not None:
-            sectPr.remove(existing_watermark)
-        
-        # 创建背景元素（水印）
-        background = OxmlElement('w:background')
-        background.set(qn('w:color'), 'FFFFFF')
-        
-        # 添加水印内容
-        # 使用 v:background 和 v:fill 实现文字水印
-        # 这需要在文档中嵌入VML图形
-        
-        # 由于python-docx的限制，我们采用另一种方案：
-        # 使用 reportlab 或直接修改 docx 的 XML
-        
-        sectPr.append(background)
-
-
-def create_text_watermark_xml(watermark_text, width=595, height=842):
-    """
-    创建文字水印的XML（用于嵌入到docx）
-    
-    参数:
-        watermark_text: 水印文字
-        width: 页面宽度（points）
-        height: 页面高度（points）
-        
-    返回:
-        水印XML字符串
-    """
-    # VML格式的文字水印
-    vml_watermark = f'''
-    <v:background id="_x0000_s1025" o:allowincell="f">
-        <v:fill on="t" type="frame" size="512,512" 
-                src="" o:title="{watermark_text}"
-                opacity="0.5f"/>
-        <v:textbox>
-            <v:textpath style="font-family:&quot;Arial&quot;;font-size:1pt" 
-                        on="t" fitshape="t" string="{watermark_text}"/>
-        </v:textbox>
-        <v:shadow on="t" type="emboss" opacity="0.5f"/>
-    </v:background>
-    '''
-    return vml_watermark
-
-
-def add_watermark_via_header(doc, watermark_text):
-    """
-    通过在页眉中添加斜向文字实现水印效果
-    
-    参数:
-        doc: Word文档对象
-        watermark_text: 水印文字
-    """
-    # 这个方法在每个页面的页眉添加一个斜向的文字框
-    # 虽然不是真正的水印，但视觉效果类似
-    
-    for section in doc.sections:
-        header = section.header
-        
-        # 在页眉开头插入水印段落
-        watermark_para = header.add_paragraph()
-        watermark_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # 添加水印文字（灰色、斜体、大号）
-        run = watermark_para.add_run(watermark_text)
-        run.font.name = 'Arial'
-        run.font.size = Pt(72)
-        run.font.italic = True
-        run.font.color.rgb = None  # 需要设置灰色
-        
-        # 设置灰色
-        from docx.shared import RGBColor
-        run.font.color.rgb = RGBColor(200, 200, 200)
-        
-        # 移动到页眉开头
-        header._element.insert(0, watermark_para._element)
-
-
-def add_real_watermark(doc, watermark_text):
-    """
-    添加真正的Word水印（通过修改XML）
-    
-    参数:
-        doc: Word文档对象
-        watermark_text: 水印文字
-    """
-    from docx.oxml.ns import nsmap
-    import copy
-    
-    # 定义命名空间
-    VML_NS = 'urn:schemas-microsoft-com:vml'
-    OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
-    
-    # 注册命名空间
-    nsmap_custom = {
-        'v': VML_NS,
-        'o': OFFICE_NS,
-        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-    }
-    
-    # 为每个节添加水印
-    for section in doc.sections:
-        sectPr = section._sectPr
-        
-        # 创建背景元素
-        background = OxmlElement('w:background')
-        background.set(qn('w:color'), 'FFFFFF')
-        
-        # 创建VML形状（水印）
-        shape = _create_watermark_shape(watermark_text)
-        background.append(shape)
-        
-        # 添加到节设置
-        sectPr.append(background)
-
-
-def _create_watermark_shape(watermark_text):
-    """
-    创建水印VML形状
-    
-    参数:
-        watermark_text: 水印文字
-        
-    返回:
-        VML形状元素
-    """
-    # VML命名空间
-    VML_NS = 'urn:schemas-microsoft-com:vml'
-    OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
-    
-    # 创建shape元素
-    shape = OxmlElement('{%s}shape' % VML_NS)
-    shape.set('{%s}id' % VML_NS, 'WordWatermark')
-    shape.set('{%s}coordsize' % VML_NS, '21600,21600')
-    shape.set('{%s}allowincell' % OFFICE_NS, 'f')
-    shape.set('{%s}filled' % VML_NS, 't')
-    shape.set('{%s}stroked' % VML_NS, 'f')
-    shape.set('{%s}type' % VML_NS, '#_x0000_t136')  # 斜向文字类型
-    
-    # 设置形状样式（位置、大小、旋转）
-    style = 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:315;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center'
-    shape.set('{%s}style' % VML_NS, style)
-    
-    # 创建填充元素
-    fill = OxmlElement('{%s}fill' % VML_NS)
-    fill.set('{%s}on' % VML_NS, 't')
-    fill.set('{%s}opacity' % VML_NS, '0.5')
-    fill.set('{%s}color2' % VML_NS, '#CCCCCC')
-    
-    # 创建文字路径
-    textpath = OxmlElement('{%s}textpath' % VML_NS)
-    textpath.set('{%s}on' % VML_NS, 't')
-    textpath.set('{%s}string' % VML_NS, watermark_text)
-    textpath.set('{%s}style' % VML_NS, 'font-family:"Arial";font-size:1pt')
-    
-    shape.append(fill)
-    shape.append(textpath)
-    
-    return shape
-
-
 def add_watermark_to_docx(doc, watermark_text):
     """
     为文档添加斜向水印（从左下到右上）
-    使用VML图形实现真正的Word水印
     
     参数:
         doc: Word文档对象
         watermark_text: 水印文字
     """
-    # 获取文档的XML命名空间
-    from lxml import etree
-    
-    # VML和Office命名空间
-    VML = '{urn:schemas-microsoft-com:vml}'
-    OFFICE = '{urn:schemas-microsoft-com:office:office}'
-    
     # 为每个节添加水印
     for section in doc.sections:
         sectPr = section._sectPr
         
-        # 创建水印形状
+        # 创建水印
         watermark_shape = _create_diagonal_watermark(watermark_text)
         
         # 添加到节的设置
@@ -794,24 +512,12 @@ def _create_diagonal_watermark(watermark_text):
     返回:
         水印XML元素
     """
-    # 使用VML创建水印
-    VML = '{urn:schemas-microsoft-com:vml}'
-    OFFICE = '{urn:schemas-microsoft-com:office:office}'
-    
     # 创建背景元素
     background = OxmlElement('w:background')
     background.set(qn('w:color'), 'auto')
     
-    # 创建形状组
-    shapetype = OxmlElement(VML + 'shapetype')
-    shapetype.set('id', '_x0000_t136')
-    shapetype.set('coordsize', '21600,21600')
-    shapetype.set('spt', '136')
-    shapetype.set('adj', '10800')
-    shapetype.set('path', 'm@7,l@8,m@5,21600l@6,21600e')
-    
-    # 创建形状
-    shape = OxmlElement(VML + 'shape')
+    # 创建形状 - 使用简化的VML结构
+    shape = OxmlElement('v:shape')
     shape.set('id', 'PowerPlusWaterMarkObject')
     shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:-45;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center')
     shape.set('coordsize', '21600,21600')
@@ -820,13 +526,13 @@ def _create_diagonal_watermark(watermark_text):
     shape.set('stroked', 'f')
     
     # 填充设置
-    fill = OxmlElement(VML + 'fill')
+    fill = OxmlElement('v:fill')
     fill.set('opacity', '.5')
     fill.set('on', 't')
     shape.append(fill)
     
     # 文字路径
-    textpath = OxmlElement(VML + 'textpath')
+    textpath = OxmlElement('v:textpath')
     textpath.set('style', 'font-family:"Calibri";font-size:"1pt"')
     textpath.set('string', watermark_text)
     shape.append(textpath)
