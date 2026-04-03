@@ -521,23 +521,21 @@ def add_watermark_to_docx(doc, watermark_text):
     for section in doc.sections:
         header = section.header
         
-        # 在页眉开头插入水印段落
+        # 在页眉末尾添加水印段落（在表格之后）
         watermark_para = header.add_paragraph()
         watermark_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # 设置段落格式
-        watermark_para.paragraph_format.space_before = Pt(150)  # 向下偏移
+        # 设置段落格式 - 让水印显示在页面中央
+        watermark_para.paragraph_format.space_before = Pt(200)  # 向下偏移到页面中央
         watermark_para.paragraph_format.space_after = Pt(0)
+        watermark_para.paragraph_format.line_spacing = 1.0
         
         # 添加水印文字（灰色、斜体、大号）
         run = watermark_para.add_run(watermark_text)
         run.font.name = 'Arial'
-        run.font.size = Pt(48)
+        run.font.size = Pt(60)
         run.font.italic = True
-        run.font.color.rgb = RGBColor(192, 192, 192)  # 浅灰色
-        
-        # 移动到页眉开头
-        header._element.insert(0, watermark_para._element)
+        run.font.color.rgb = RGBColor(200, 200, 200)  # 浅灰色
 
 
 def add_heading_with_number(doc, text, level=1):
@@ -1467,7 +1465,9 @@ company_name=公司
 report_name=None
 
 # ===== 水印配置 =====
-# 水印文字（可选，None则不添加水印）
+# 水印文字（设置后会在页面中央显示灰色斜向水印）
+# 示例：watermark_text=张三 to 李四
+# 不需要水印则设为None
 watermark_text=None
 
 # ===== Sheet配置 =====
