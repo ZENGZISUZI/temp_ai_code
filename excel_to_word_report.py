@@ -1136,41 +1136,47 @@ class ExcelToWordReport:
         
         doc.add_paragraph()  # 空行
         
-        # 添加Word目录字段（自动生成带页码的目录）
-        paragraph = doc.add_paragraph()
-        run = paragraph.add_run()
+        # 手动生成目录内容（带页码占位符）
+        toc_items = [
+            ('1 概述', 1),
+            ('  1.1 产品信息', 2),
+            ('  1.2 试验信息', 2),
+            ('  1.3 工作模式', 2),
+            ('  1.4 测试仪器设备', 2),
+            ('2 试验结果汇总', 1),
+            ('3 测试数据', 1),
+        ]
         
-        # 开始字段
-        fldChar_begin = OxmlElement('w:fldChar')
-        fldChar_begin.set(qn('w:fldCharType'), 'begin')
+        # 添加大用例和小用例到目录
+        for big_idx, big_case in enumerate(self.big_cases, 1):
+            clean_name = clean_case_number(big_case["name"])
+            toc_items.append((f'  3.{big_idx} {clean_name}', 2))
+            for small_idx, small_case in enumerate(big_case['small_cases'], 1):
+                clean_small_name = clean_case_number(small_case["name"])
+                toc_items.append((f'    3.{big_idx}.{small_idx} {clean_small_name}', 3))
         
-        # 字段指令：TOC \o "1-3" \h \z \u \t "标题 1,1,标题 2,2,标题 3,3"
-        instrText = OxmlElement('w:instrText')
-        instrText.set(qn('xml:space'), 'preserve')
-        instrText.text = 'TOC \\o "1-3" \\h \\z \\t "Heading 1,1,Heading 2,2,Heading 3,3"'
-        
-        # 分隔符
-        fldChar_separate = OxmlElement('w:fldChar')
-        fldChar_separate.set(qn('w:fldCharType'), 'separate')
-        
-        # 结束字段
-        fldChar_end = OxmlElement('w:fldChar')
-        fldChar_end.set(qn('w:fldCharType'), 'end')
-        
-        run._r.append(fldChar_begin)
-        run._r.append(instrText)
-        run._r.append(fldChar_separate)
-        run._r.append(fldChar_end)
-        
-        doc.add_paragraph()  # 空行
-        
-        # 添加提示
-        tip = doc.add_paragraph()
-        tip_run = tip.add_run('（打开文档后，右键点击目录区域选择"更新域"即可显示完整目录）')
-        tip_run.font.size = Pt(9)
-        tip_run.font.color.rgb = RGBColor(128, 128, 128)
-        tip_run.font.name = font_name
-        tip_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        # 输出目录（带点号和页码占位符）
+        for item_text, level in toc_items:
+            toc_para = doc.add_paragraph()
+            toc_run = toc_para.add_run(item_text)
+            toc_run.font.name = font_name
+            toc_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            toc_run.font.size = Pt(body_size)
+            toc_run.font.color.rgb = RGBColor(0, 0, 0)
+            
+            # 添加点号和页码占位符
+            dots_run = toc_para.add_run(' ' + '.' * 50 + ' ')
+            dots_run.font.name = font_name
+            dots_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            dots_run.font.size = Pt(body_size)
+            dots_run.font.color.rgb = RGBColor(0, 0, 0)
+            
+            # 页码占位符（实际页码需要Word更新域才能正确显示）
+            page_run = toc_para.add_run('1')
+            page_run.font.name = font_name
+            page_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            page_run.font.size = Pt(body_size)
+            page_run.font.color.rgb = RGBColor(0, 0, 0)
         
         doc.add_paragraph()  # 空行
 
