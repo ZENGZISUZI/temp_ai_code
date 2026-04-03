@@ -517,38 +517,46 @@ def add_watermark_to_docx(doc, watermark_text):
     """
     from lxml import etree
     
+    # VML和Office命名空间
+    VML_NS = 'urn:schemas-microsoft-com:vml'
+    OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
+    
     # 为每个节添加水印
     for section in doc.sections:
         header = section.header
         
+        # 获取或创建header的XML元素
+        header_elem = header._element
+        
         # 创建水印段落
-        watermark_para = header.add_paragraph()
-        pPr = watermark_para._p.get_or_add_pPr()
+        watermark_para = OxmlElement('w:p')
+        
+        # 创建段落属性
+        pPr = OxmlElement('w:pPr')
+        watermark_para.append(pPr)
         
         # 创建VML形状（斜向水印）
-        VML_NS = 'urn:schemas-microsoft-com:vml'
-        OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
+        # 使用带命名空间的XML字符串
+        shape_xml = f'''
+        <v:shape xmlns:v="urn:schemas-microsoft-com:vml" 
+                 xmlns:o="urn:schemas-microsoft-com:office:office"
+                 id="Watermark" 
+                 style="position:absolute;margin-left:0;margin-top:0;width:400pt;height:80pt;rotation:315;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center;mso-position-horizontal-relative:page;mso-position-vertical-relative:page"
+                 coordsize="21600,21600" 
+                 allowincell="f" 
+                 filled="t" 
+                 stroked="f">
+            <v:fill opacity="0.3" on="t"/>
+            <v:textpath style="font-family:&quot;Arial&quot;;font-size:36pt" on="t" string="{watermark_text}"/>
+        </v:shape>
+        '''
         
-        # 水印形状XML
-        shape = etree.SubElement(watermark_para._p, '{%s}shape' % VML_NS)
-        shape.set('id', 'Watermark')
-        # 斜向315度（从左下到右上），z-index负值让水印在底层
-        shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:400pt;height:80pt;rotation:315;z-index:-1;mso-position-horizontal:center;mso-position-vertical:center;mso-position-horizontal-relative:page;mso-position-vertical-relative:page')
-        shape.set('coordsize', '21600,21600')
-        shape.set('allowincell', 'f')
-        shape.set('filled', 't')
-        shape.set('stroked', 'f')
+        # 解析XML并添加到段落
+        shape_elem = etree.fromstring(shape_xml)
+        watermark_para.append(shape_elem)
         
-        # 填充设置（半透明灰色）
-        fill = etree.SubElement(shape, '{%s}fill' % VML_NS)
-        fill.set('opacity', '0.3')
-        fill.set('on', 't')
-        
-        # 文字路径
-        textpath = etree.SubElement(shape, '{%s}textpath' % VML_NS)
-        textpath.set('style', 'font-family:"Arial";font-size:36pt')
-        textpath.set('on', 't')
-        textpath.set('string', watermark_text)
+        # 将水印段落添加到header开头
+        header_elem.insert(0, watermark_para)
 
 
 def add_heading_with_number(doc, text, level=1):
