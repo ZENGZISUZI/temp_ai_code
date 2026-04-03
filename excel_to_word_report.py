@@ -1215,7 +1215,7 @@ class ExcelToWordReport:
                 cell.text = str(item.get(header, ''))
                 set_cell_font(cell, font_name=font_name, font_size=body_size)
         
-        # 合并相同试验分类的单元格
+        # 合并相同试验分类的单元格并设置居中
         if self.summary_data:
             current_category = None
             merge_start = 1
@@ -1227,14 +1227,24 @@ class ExcelToWordReport:
                     # 合并前一个分类的单元格
                     if current_category is not None and row_idx - 1 >= merge_start:
                         if row_idx - 1 > merge_start:  # 至少2行才合并
-                            summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                            merged_cell = summary_table.cell(merge_start, 1)
+                            merged_cell.merge(summary_table.cell(row_idx - 1, 1))
+                            # 设置合并后居中
+                            merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                            for para in merged_cell.paragraphs:
+                                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     current_category = category
                     merge_start = row_idx
             
             # 合并最后一个分类
             last_row = len(self.summary_data)
             if last_row > merge_start:
-                summary_table.cell(merge_start, 1).merge(summary_table.cell(last_row, 1))
+                merged_cell = summary_table.cell(merge_start, 1)
+                merged_cell.merge(summary_table.cell(last_row, 1))
+                # 设置合并后居中
+                merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                for para in merged_cell.paragraphs:
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         doc.add_paragraph()
 
