@@ -253,7 +253,7 @@ def set_table_border(table):
 
 def add_header_footer(doc, report_name, report_number, logo_path=None, company_name="公司"):
     """
-    添加页眉和页脚
+    添加页眉和页脚（带横线分隔）
     
     参数:
         doc: Word文档对象
@@ -321,6 +321,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     # 移除表格边框
     set_table_border(header_table, show_border=False)
     
+    # 添加页眉底部横线
+    header_para = header.add_paragraph()
+    set_paragraph_bottom_border(header_para)
+    
     # ===== 设置页脚 =====
     footer = section.footer
     footer.is_linked_to_previous = False
@@ -328,6 +332,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     # 清空默认段落
     for para in footer.paragraphs:
         para.clear()
+    
+    # 添加页脚顶部横线
+    footer_line_para = footer.add_paragraph()
+    set_paragraph_top_border(footer_line_para)
     
     # 创建页脚表格（2列：保密信息 | 页码）
     footer_table = footer.add_table(rows=1, cols=2, width=Inches(7.5))
@@ -376,6 +384,42 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     
     # 移除表格边框
     set_table_border(footer_table, show_border=False)
+
+
+def set_paragraph_bottom_border(paragraph):
+    """
+    为段落设置底部边框（横线）
+    
+    参数:
+        paragraph: 段落对象
+    """
+    pPr = paragraph._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    bottom = OxmlElement('w:bottom')
+    bottom.set(qn('w:val'), 'single')
+    bottom.set(qn('w:sz'), '6')  # 线条粗细
+    bottom.set(qn('w:space'), '1')
+    bottom.set(qn('w:color'), '000000')
+    pBdr.append(bottom)
+    pPr.append(pBdr)
+
+
+def set_paragraph_top_border(paragraph):
+    """
+    为段落设置顶部边框（横线）
+    
+    参数:
+        paragraph: 段落对象
+    """
+    pPr = paragraph._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    top = OxmlElement('w:top')
+    top.set(qn('w:val'), 'single')
+    top.set(qn('w:sz'), '6')  # 线条粗细
+    top.set(qn('w:space'), '1')
+    top.set(qn('w:color'), '000000')
+    pBdr.append(top)
+    pPr.append(pBdr)
 
 
 def set_table_border(table, show_border=True):
