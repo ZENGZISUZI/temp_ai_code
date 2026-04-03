@@ -288,6 +288,9 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     cell_left = header_table.cell(0, 0)
     para_left = cell_left.paragraphs[0]
     para_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    # 设置段落间距为0
+    para_left.paragraph_format.space_before = Pt(0)
+    para_left.paragraph_format.space_after = Pt(0)
     
     # 添加Logo图片
     if logo_path and os.path.exists(logo_path):
@@ -313,6 +316,8 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     cell_right = header_table.cell(0, 2)
     para_right = cell_right.paragraphs[0]
     para_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    para_right.paragraph_format.space_before = Pt(0)
+    para_right.paragraph_format.space_after = Pt(0)
     run_number = para_right.add_run(f"报告编号:{report_number}")
     run_number.font.name = '宋体'
     run_number.font.size = Pt(10)
@@ -321,8 +326,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     # 移除表格边框
     set_table_border(header_table, show_border=False)
     
-    # 添加页眉底部横线
+    # 添加页眉底部横线（紧贴内容）
     header_para = header.add_paragraph()
+    header_para.paragraph_format.space_before = Pt(0)
+    header_para.paragraph_format.space_after = Pt(0)
     set_paragraph_bottom_border(header_para)
     
     # ===== 设置页脚 =====
@@ -333,8 +340,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     for para in footer.paragraphs:
         para.clear()
     
-    # 添加页脚顶部横线
+    # 添加页脚顶部横线（紧贴内容）
     footer_line_para = footer.add_paragraph()
+    footer_line_para.paragraph_format.space_before = Pt(0)
+    footer_line_para.paragraph_format.space_after = Pt(0)
     set_paragraph_top_border(footer_line_para)
     
     # 创建页脚表格（2列：保密信息 | 页码）
@@ -349,6 +358,8 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     cell_secret = footer_table.cell(0, 0)
     para_secret = cell_secret.paragraphs[0]
     para_secret.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    para_secret.paragraph_format.space_before = Pt(0)
+    para_secret.paragraph_format.space_after = Pt(0)
     run_secret = para_secret.add_run(f"{company_name}保密信息，未经授权禁止扩散！")
     run_secret.font.name = '宋体'
     run_secret.font.size = Pt(9)
@@ -359,6 +370,8 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     cell_page = footer_table.cell(0, 1)
     para_page = cell_page.paragraphs[0]
     para_page.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    para_page.paragraph_format.space_before = Pt(0)
+    para_page.paragraph_format.space_after = Pt(0)
     
     # 添加页码字段
     run_page = para_page.add_run("第 ")
@@ -398,7 +411,7 @@ def set_paragraph_bottom_border(paragraph):
     bottom = OxmlElement('w:bottom')
     bottom.set(qn('w:val'), 'single')
     bottom.set(qn('w:sz'), '6')  # 线条粗细
-    bottom.set(qn('w:space'), '1')
+    bottom.set(qn('w:space'), '0')  # 紧贴内容
     bottom.set(qn('w:color'), '000000')
     pBdr.append(bottom)
     pPr.append(pBdr)
@@ -416,7 +429,7 @@ def set_paragraph_top_border(paragraph):
     top = OxmlElement('w:top')
     top.set(qn('w:val'), 'single')
     top.set(qn('w:sz'), '6')  # 线条粗细
-    top.set(qn('w:space'), '1')
+    top.set(qn('w:space'), '0')  # 紧贴内容
     top.set(qn('w:color'), '000000')
     pBdr.append(top)
     pPr.append(pBdr)
