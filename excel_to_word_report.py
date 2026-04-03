@@ -9,7 +9,7 @@ Excel测试报告转Word文档工具
 
 import pandas as pd
 from docx import Document
-from docx.shared import Pt, Inches, Cm
+from docx.shared import Pt, Inches, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.ns import qn
@@ -1124,27 +1124,42 @@ class ExcelToWordReport:
             add_watermark_to_docx(doc, self.watermark_text)
 
         # ===== 目录 =====
-        add_heading_with_number(doc, '目录', level=1, font_config=self.font_config)
-        # 添加目录字段
-        paragraph = doc.add_paragraph()
-        run = paragraph.add_run()
-        fldChar1 = OxmlElement('w:fldChar')
-        fldChar1.set(qn('w:fldCharType'), 'begin')
+        # 目录标题
+        toc_heading = doc.add_heading('目录', level=1)
+        for run in toc_heading.runs:
+            run.font.name = font_name
+            run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            run.font.size = Pt(self.font_config.get('title1_size', 16))
+            run.font.bold = self.font_config.get('title1_bold', True)
+            run.font.color.rgb = RGBColor(0, 0, 0)
         
-        instrText = OxmlElement('w:instrText')
-        instrText.set(qn('xml:space'), 'preserve')
-        instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
+        # 手动生成目录内容
+        toc_items = [
+            ('1 概述', 1),
+            ('  1.1 产品信息', 2),
+            ('  1.2 试验信息', 2),
+            ('  1.3 工作模式', 2),
+            ('  1.4 测试仪器设备', 2),
+            ('2 试验结果汇总', 1),
+            ('3 测试数据', 1),
+        ]
         
-        fldChar2 = OxmlElement('w:fldChar')
-        fldChar2.set(qn('w:fldCharType'), 'separate')
+        # 添加大用例和小用例到目录
+        for big_idx, big_case in enumerate(self.big_cases, 1):
+            clean_name = clean_case_number(big_case["name"])
+            toc_items.append((f'  3.{big_idx} {clean_name}', 2))
+            for small_idx, small_case in enumerate(big_case['small_cases'], 1):
+                clean_small_name = clean_case_number(small_case["name"])
+                toc_items.append((f'    3.{big_idx}.{small_idx} {clean_small_name}', 3))
         
-        fldChar3 = OxmlElement('w:fldChar')
-        fldChar3.set(qn('w:fldCharType'), 'end')
-        
-        run._r.append(fldChar1)
-        run._r.append(instrText)
-        run._r.append(fldChar2)
-        run._r.append(fldChar3)
+        # 输出目录
+        for item_text, level in toc_items:
+            toc_para = doc.add_paragraph()
+            toc_run = toc_para.add_run(item_text)
+            toc_run.font.name = font_name
+            toc_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            toc_run.font.size = Pt(body_size)
+            toc_run.font.color.rgb = RGBColor(0, 0, 0)
         
         doc.add_paragraph()  # 空行
 
