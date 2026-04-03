@@ -561,7 +561,7 @@ def add_watermark_to_docx(doc, watermark_text):
 
 def add_heading_with_number(doc, text, level=1, font_config=None):
     """
-    添加带编号的标题
+    添加带编号的标题（使用Word标题样式，支持目录生成）
     
     参数:
         doc: Word文档对象
@@ -583,24 +583,26 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
     if font_config:
         config.update(font_config)
     
-    para = doc.add_paragraph()
-    para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    # 使用Word标题样式（支持目录）
+    heading = doc.add_heading(text, level=level)
+    heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
-    run = para.add_run(text)
-    run.font.name = config['font_name']
-    run._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
+    # 设置字体格式
+    for run in heading.runs:
+        run.font.name = config['font_name']
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
+        
+        if level == 1:
+            run.font.size = Pt(config['title1_size'])
+            run.font.bold = config['title1_bold']
+        elif level == 2:
+            run.font.size = Pt(config['title2_size'])
+            run.font.bold = config['title2_bold']
+        else:
+            run.font.size = Pt(config['title3_size'])
+            run.font.bold = config['title3_bold']
     
-    if level == 1:
-        run.font.size = Pt(config['title1_size'])
-        run.font.bold = config['title1_bold']
-    elif level == 2:
-        run.font.size = Pt(config['title2_size'])
-        run.font.bold = config['title2_bold']
-    else:
-        run.font.size = Pt(config['title3_size'])
-        run.font.bold = config['title3_bold']
-    
-    return para
+    return heading
 
 
 def add_body_paragraph(doc, text, font_config=None):
@@ -1069,6 +1071,31 @@ class ExcelToWordReport:
         # ===== 添加水印 =====
         if self.watermark_text:
             add_watermark_to_docx(doc, self.watermark_text)
+
+        # ===== 目录 =====
+        add_heading_with_number(doc, '目录', level=1, font_config=self.font_config)
+        # 添加目录字段
+        paragraph = doc.add_paragraph()
+        run = paragraph.add_run()
+        fldChar1 = OxmlElement('w:fldChar')
+        fldChar1.set(qn('w:fldCharType'), 'begin')
+        
+        instrText = OxmlElement('w:instrText')
+        instrText.set(qn('xml:space'), 'preserve')
+        instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
+        
+        fldChar2 = OxmlElement('w:fldChar')
+        fldChar2.set(qn('w:fldCharType'), 'separate')
+        
+        fldChar3 = OxmlElement('w:fldChar')
+        fldChar3.set(qn('w:fldCharType'), 'end')
+        
+        run._r.append(fldChar1)
+        run._r.append(instrText)
+        run._r.append(fldChar2)
+        run._r.append(fldChar3)
+        
+        doc.add_paragraph()  # 空行
 
         # ===== 1. 概述（大标题）=====
         add_heading_with_number(doc, '1 概述', level=1, font_config=self.font_config)
