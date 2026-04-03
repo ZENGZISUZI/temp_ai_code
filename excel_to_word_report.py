@@ -605,6 +605,42 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
     return heading
 
 
+def update_toc_in_word(word_path):
+    """
+    使用win32com打开Word文档并更新目录
+    
+    参数:
+        word_path: Word文档路径
+    """
+    try:
+        import win32com.client
+        
+        # 启动Word应用
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False  # 后台运行
+        
+        # 打开文档
+        doc = word.Documents.Open(os.path.abspath(word_path))
+        
+        # 更新所有域（包括目录）
+        doc.Fields.Update()
+        
+        # 保存并关闭
+        doc.Save()
+        doc.Close()
+        word.Quit()
+        
+        print("✓ 目录已自动更新")
+        return True
+    except ImportError:
+        print("⚠️ 未安装win32com，无法自动更新目录")
+        print("  提示: pip install pywin32")
+        return False
+    except Exception as e:
+        print(f"⚠️ 更新目录失败: {e}")
+        return False
+
+
 def add_bookmark(paragraph, bookmark_name):
     """
     为段落添加书签
@@ -1353,6 +1389,10 @@ class ExcelToWordReport:
         # 保存文档
         doc.save(self.word_path)
         print(f"Word报告已生成: {self.word_path}")
+        
+        # 自动更新目录页码
+        update_toc_in_word(self.word_path)
+        
         return self.word_path
 
 
