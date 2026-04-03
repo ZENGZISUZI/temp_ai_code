@@ -1216,15 +1216,27 @@ class ExcelToWordReport:
                 clean_small_name = clean_case_number(small_case["name"])
                 toc_items.append((f'3.{big_idx}.{small_idx} {clean_small_name}', f'toc_3_{big_idx}_{small_idx}', 3))
         
-        # 输出目录（带超链接）
+        # 输出目录（带超链接和页码格式）
         for item_text, bookmark_name, level in toc_items:
             toc_para = doc.add_paragraph()
             
             # 根据级别添加缩进
             indent = '    ' * (level - 1)
             
-            # 添加超链接
+            # 添加超链接标题
             add_hyperlink(toc_para, indent + item_text, bookmark_name, font_name, body_size)
+            
+            # 添加点号
+            dots_run = toc_para.add_run(' ' + '.' * 40 + ' ')
+            dots_run.font.name = font_name
+            dots_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            dots_run.font.size = Pt(body_size)
+            
+            # 添加页码占位符
+            page_run = toc_para.add_run('1')
+            page_run.font.name = font_name
+            page_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            page_run.font.size = Pt(body_size)
         
         doc.add_paragraph()  # 空行
 
