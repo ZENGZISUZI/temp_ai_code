@@ -559,7 +559,7 @@ def add_watermark_to_docx(doc, watermark_text):
         header_elem.insert(0, watermark_para)
 
 
-def add_heading_with_number(doc, text, level=1):
+def add_heading_with_number(doc, text, level=1, font_config=None):
     """
     添加带编号的标题
     
@@ -567,65 +567,92 @@ def add_heading_with_number(doc, text, level=1):
         doc: Word文档对象
         text: 标题文字
         level: 标题级别（1=大标题，2=次标题，3=小标题）
+        font_config: 字体配置字典
     """
+    # 默认配置
+    default_config = {
+        'font_name': '微软雅黑',
+        'title1_size': 16,
+        'title1_bold': True,
+        'title2_size': 12,
+        'title2_bold': True,
+        'title3_size': 12,
+        'title3_bold': False,
+    }
+    config = default_config.copy()
+    if font_config:
+        config.update(font_config)
+    
     para = doc.add_paragraph()
     para.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     run = para.add_run(text)
-    run.font.name = '微软雅黑'
-    run._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+    run.font.name = config['font_name']
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
     
     if level == 1:
-        # 大标题：三号(16pt)，加粗
-        run.font.size = Pt(16)
-        run.font.bold = True
+        run.font.size = Pt(config['title1_size'])
+        run.font.bold = config['title1_bold']
     elif level == 2:
-        # 次标题：小四(12pt)，加粗
-        run.font.size = Pt(12)
-        run.font.bold = True
+        run.font.size = Pt(config['title2_size'])
+        run.font.bold = config['title2_bold']
     else:
-        # 小标题：小四(12pt)，不加粗
-        run.font.size = Pt(12)
-        run.font.bold = False
+        run.font.size = Pt(config['title3_size'])
+        run.font.bold = config['title3_bold']
     
     return para
 
 
-def add_body_paragraph(doc, text):
+def add_body_paragraph(doc, text, font_config=None):
     """
-    添加正文段落（微软雅黑，五号字体）
+    添加正文段落
     
     参数:
         doc: Word文档对象
         text: 正文内容
+        font_config: 字体配置字典
     """
+    default_config = {
+        'font_name': '微软雅黑',
+        'body_size': 10.5,
+        'body_bold': False,
+    }
+    config = default_config.copy()
+    if font_config:
+        config.update(font_config)
+    
     para = doc.add_paragraph()
     para.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     run = para.add_run(text)
-    run.font.name = '微软雅黑'
-    run._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
-    run.font.size = Pt(10.5)  # 五号字
+    run.font.name = config['font_name']
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
+    run.font.size = Pt(config['body_size'])
+    run.font.bold = config['body_bold']
     
     return para
 
 
-def create_testcase_table(doc, data_dict):
+def create_testcase_table(doc, data_dict, font_config=None):
     """
     创建测试用例表格
     
-    结构：
-    - 第1行：开始日期 | 值 | 结束日期 | 值（4列）
-    - 第2行：样机数量 | 值 | 样机编号 | 值（4列）
-    - 第3行起：字段名 | 值（2列）
-
     参数:
         doc: Word文档对象
         data_dict: 数据字典 {字段名: 值}
+        font_config: 字体配置字典
     """
-    # 第一行和第二行字段（4列）
-    row1_fields = ['开始日期', '结束日期']
-    row2_fields = ['样机数量', '样机编号']
+    # 默认配置
+    default_config = {
+        'font_name': '微软雅黑',
+        'body_size': 10.5,
+    }
+    config = default_config.copy()
+    if font_config:
+        config.update(font_config)
+    
+    font_name = config['font_name']
+    font_size = config['body_size']
     
     # 后续行字段（2列）
     remaining_fields = ['试验机构', '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
@@ -640,23 +667,23 @@ def create_testcase_table(doc, data_dict):
     
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
-    set_cell_font(table.cell(0, 0), bold=True, font_size=10.5)
+    set_cell_font(table.cell(0, 0), font_name=font_name, font_size=font_size, bold=True)
     table.cell(0, 1).text = str(data_dict.get('开始日期', ''))
-    set_cell_font(table.cell(0, 1), font_size=10.5)
+    set_cell_font(table.cell(0, 1), font_name=font_name, font_size=font_size)
     table.cell(0, 2).text = '结束日期'
-    set_cell_font(table.cell(0, 2), bold=True, font_size=10.5)
+    set_cell_font(table.cell(0, 2), font_name=font_name, font_size=font_size, bold=True)
     table.cell(0, 3).text = str(data_dict.get('结束日期', ''))
-    set_cell_font(table.cell(0, 3), font_size=10.5)
+    set_cell_font(table.cell(0, 3), font_name=font_name, font_size=font_size)
     
     # 第二行：样机数量 | 值 | 样机编号 | 值
     table.cell(1, 0).text = '样机数量'
-    set_cell_font(table.cell(1, 0), bold=True, font_size=10.5)
+    set_cell_font(table.cell(1, 0), font_name=font_name, font_size=font_size, bold=True)
     table.cell(1, 1).text = str(data_dict.get('样机数量', ''))
-    set_cell_font(table.cell(1, 1), font_size=10.5)
+    set_cell_font(table.cell(1, 1), font_name=font_name, font_size=font_size)
     table.cell(1, 2).text = '样机编号'
-    set_cell_font(table.cell(1, 2), bold=True, font_size=10.5)
+    set_cell_font(table.cell(1, 2), font_name=font_name, font_size=font_size, bold=True)
     table.cell(1, 3).text = str(data_dict.get('样机编号', ''))
-    set_cell_font(table.cell(1, 3), font_size=10.5)
+    set_cell_font(table.cell(1, 3), font_name=font_name, font_size=font_size)
     
     # 第三行起：字段名占1列，值合并3列
     for i, field in enumerate(remaining_fields):
@@ -667,20 +694,33 @@ def create_testcase_table(doc, data_dict):
         
         # 填充内容
         table.cell(row_idx, 0).text = field
-        set_cell_font(table.cell(row_idx, 0), bold=True, font_size=10.5)
+        set_cell_font(table.cell(row_idx, 0), font_name=font_name, font_size=font_size, bold=True)
         value = data_dict.get(field, '')
         table.cell(row_idx, 1).text = str(value) if value else ''
-        set_cell_font(table.cell(row_idx, 1), font_size=10.5)
+        set_cell_font(table.cell(row_idx, 1), font_name=font_name, font_size=font_size)
 
-    doc.add_paragraph()  # 空行
+    doc.add_paragraph()
     return table
 
 
 class ExcelToWordReport:
     """Excel转Word报告主类"""
 
+    # 默认字体配置
+    DEFAULT_FONT_CONFIG = {
+        'font_name': '微软雅黑',
+        'title1_size': 16,      # 大标题：三号
+        'title1_bold': True,
+        'title2_size': 12,      # 次标题：小四
+        'title2_bold': True,
+        'title3_size': 12,      # 小标题：小四
+        'title3_bold': False,
+        'body_size': 10.5,      # 正文：五号
+        'body_bold': False,
+    }
+
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
-                 company_name="公司", watermark_text=None, report_name=None):
+                 company_name="公司", watermark_text=None, report_name=None, font_config=None):
         """
         初始化
 
@@ -692,6 +732,7 @@ class ExcelToWordReport:
             company_name: 公司名称（页脚保密信息用）
             watermark_text: 水印文字，如 "xxxx to xxxx"
             report_name: 报告名称（页眉用），默认使用文件名
+            font_config: 字体配置字典，可覆盖默认配置
         """
         self.excel_path = excel_path
         self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
@@ -699,17 +740,22 @@ class ExcelToWordReport:
         self.report_number = report_number or self._generate_report_number()
         self.company_name = company_name
         self.watermark_text = watermark_text
-        self.report_name = report_name  # 报告名称
+        self.report_name = report_name
+        
+        # 合并字体配置
+        self.font_config = self.DEFAULT_FONT_CONFIG.copy()
+        if font_config:
+            self.font_config.update(font_config)
 
         # 读取Excel
         self.df = None
         self.excel_columns = []
 
         # 解析后的数据
-        self.overview_data = {}  # 概述数据
-        self.big_cases = []  # 大用例列表 [{'name': 'aaaa', 'small_cases': [...]}]
-        self.summary_data = []  # 汇总数据
-        self.col_name_to_idx = {}  # 列名到索引的映射
+        self.overview_data = {}
+        self.big_cases = []
+        self.summary_data = []
+        self.col_name_to_idx = {}
     
     def _generate_report_number(self):
         """生成默认报告编号（日期+时间）"""
@@ -1008,13 +1054,15 @@ class ExcelToWordReport:
         """生成Word报告"""
         doc = Document()
 
-        # 设置默认字体为微软雅黑五号
-        doc.styles['Normal'].font.name = '微软雅黑'
-        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
-        doc.styles['Normal'].font.size = Pt(10.5)  # 五号字
+        # 设置默认字体
+        font_name = self.font_config.get('font_name', '微软雅黑')
+        body_size = self.font_config.get('body_size', 10.5)
+        
+        doc.styles['Normal'].font.name = font_name
+        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        doc.styles['Normal'].font.size = Pt(body_size)
 
         # ===== 添加页眉页脚 =====
-        # 报告名称：优先使用配置的名称，否则使用文件名
         report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
         add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
 
@@ -1023,26 +1071,26 @@ class ExcelToWordReport:
             add_watermark_to_docx(doc, self.watermark_text)
 
         # ===== 1. 概述（大标题）=====
-        add_heading_with_number(doc, '1 概述', level=1)
+        add_heading_with_number(doc, '1 概述', level=1, font_config=self.font_config)
 
         # 1.1 产品信息（次标题）
-        add_heading_with_number(doc, '1.1 产品信息', level=2)
-        add_body_paragraph(doc, self.overview_data.get('产品信息', '（待填写）'))
+        add_heading_with_number(doc, '1.1 产品信息', level=2, font_config=self.font_config)
+        add_body_paragraph(doc, self.overview_data.get('产品信息', '（待填写）'), font_config=self.font_config)
 
         # 1.2 试验信息（次标题）
-        add_heading_with_number(doc, '1.2 试验信息', level=2)
-        add_body_paragraph(doc, self.overview_data.get('试验信息', '（待填写）'))
+        add_heading_with_number(doc, '1.2 试验信息', level=2, font_config=self.font_config)
+        add_body_paragraph(doc, self.overview_data.get('试验信息', '（待填写）'), font_config=self.font_config)
 
         # 1.3 工作模式（次标题）
-        add_heading_with_number(doc, '1.3 工作模式', level=2)
-        add_body_paragraph(doc, self.overview_data.get('工作模式', '（待填写）'))
+        add_heading_with_number(doc, '1.3 工作模式', level=2, font_config=self.font_config)
+        add_body_paragraph(doc, self.overview_data.get('工作模式', '（待填写）'), font_config=self.font_config)
 
         # 1.4 测试仪器设备（次标题）
-        add_heading_with_number(doc, '1.4 测试仪器设备', level=2)
-        add_body_paragraph(doc, self.overview_data.get('测试仪器设备', '（待填写）'))
+        add_heading_with_number(doc, '1.4 测试仪器设备', level=2, font_config=self.font_config)
+        add_body_paragraph(doc, self.overview_data.get('测试仪器设备', '（待填写）'), font_config=self.font_config)
 
         # ===== 2. 试验结果汇总（大标题）=====
-        add_heading_with_number(doc, '2 试验结果汇总', level=1)
+        add_heading_with_number(doc, '2 试验结果汇总', level=1, font_config=self.font_config)
 
         # 创建汇总表格
         summary_table = doc.add_table(rows=len(self.summary_data) + 1, cols=4)
@@ -1054,14 +1102,14 @@ class ExcelToWordReport:
         for i, header in enumerate(headers):
             cell = summary_table.cell(0, i)
             cell.text = header
-            set_cell_font(cell, bold=True)
+            set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True)
 
         # 数据行
         for row_idx, item in enumerate(self.summary_data):
             for col_idx, header in enumerate(headers):
                 cell = summary_table.cell(row_idx + 1, col_idx)
                 cell.text = str(item.get(header, ''))
-                set_cell_font(cell)
+                set_cell_font(cell, font_name=font_name, font_size=body_size)
         
         # 合并相同试验分类的单元格
         if self.summary_data:
@@ -1072,21 +1120,18 @@ class ExcelToWordReport:
                 category = item.get('试验分类', '')
                 
                 if category != current_category:
-                    # 如果是新分类，合并前一个分类的单元格
                     if current_category is not None and row_idx > merge_start + 1:
-                        # 合并试验分类列（第2列，索引1）
                         summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
                     current_category = category
                     merge_start = row_idx
             
-            # 合并最后一个分类
             if len(self.summary_data) > 1 and merge_start < len(self.summary_data):
                 summary_table.cell(merge_start, 1).merge(summary_table.cell(len(self.summary_data), 1))
 
         doc.add_paragraph()
 
         # ===== 3. 测试数据 =====
-        add_heading_with_number(doc, '3 测试数据', level=1)
+        add_heading_with_number(doc, '3 测试数据', level=1, font_config=self.font_config)
         
         # 验证大用例章节位置
         print("\n验证大用例章节位置...")
@@ -1098,19 +1143,13 @@ class ExcelToWordReport:
             print("✓ 所有大用例位置正确")
 
         for big_idx, big_case in enumerate(self.big_cases, 1):
-            # 清理大用例名字中的数字前缀
             clean_name = clean_case_number(big_case["name"])
-            # 大用例标题 (3.1, 3.2, ...)
-            add_heading_with_number(doc, f'3.{big_idx} {clean_name}', level=2)
+            add_heading_with_number(doc, f'3.{big_idx} {clean_name}', level=2, font_config=self.font_config)
 
             for small_idx, small_case in enumerate(big_case['small_cases'], 1):
-                # 清理小用例名字中的数字前缀
                 clean_small_name = clean_case_number(small_case["name"])
-                # 小用例标题 (3.1.1, 3.1.2, ...)
-                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3)
-
-                # 小用例表格
-                create_testcase_table(doc, small_case['data'])
+                add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3, font_config=self.font_config)
+                create_testcase_table(doc, small_case['data'], font_config=self.font_config)
 
         # 保存文档
         doc.save(self.word_path)
@@ -1194,7 +1233,7 @@ def list_sheets(excel_path):
 
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
                    logo_path=None, report_number=None, company_name="公司", 
-                   watermark_text=None, report_name=None):
+                   watermark_text=None, report_name=None, font_config=None):
     """
     处理指定的sheet，生成Word报告
 
@@ -1212,6 +1251,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         company_name: 公司名称
         watermark_text: 水印文字
         report_name: 报告名称（页眉用）
+        font_config: 字体配置字典
 
     返回:
         生成的Word文件路径列表
@@ -1236,12 +1276,12 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
     if merge and len(sheets_to_process) > 1:
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
                                      logo_path, report_number, company_name, 
-                                     watermark_text, report_name)
+                                     watermark_text, report_name, font_config)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                       logo_path, report_number, company_name, 
-                                      watermark_text, report_name)
+                                      watermark_text, report_name, font_config)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -1280,7 +1320,7 @@ def _resolve_sheets(all_sheets, sheets):
 
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                 logo_path=None, report_number=None, company_name="公司", 
-                                watermark_text=None, report_name=None):
+                                watermark_text=None, report_name=None, font_config=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -1298,7 +1338,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
         try:
             converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
-                                          company_name, watermark_text, report_name)
+                                          company_name, watermark_text, report_name, font_config)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -1313,7 +1353,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                           logo_path=None, report_number=None, company_name="公司", 
-                          watermark_text=None, report_name=None):
+                          watermark_text=None, report_name=None, font_config=None):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -1321,10 +1361,16 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
     word_path = os.path.join(output_dir, f"{base_name}_合并报告.docx")
     
+    # 获取字体配置
+    fc = font_config or {}
+    font_name = fc.get('font_name', '微软雅黑')
+    body_size = fc.get('body_size', 10.5)
+    
     # 创建合并文档
     doc = Document()
-    doc.styles['Normal'].font.name = '宋体'
-    doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    doc.styles['Normal'].font.name = font_name
+    doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    doc.styles['Normal'].font.size = Pt(body_size)
     
     # 添加页眉页脚
     actual_report_name = report_name or f"{base_name}_合并报告"
@@ -1434,10 +1480,8 @@ def load_config(config_path):
     配置文件格式（每行一个配置，#开头为注释）：
     excel_file=D:\AI\test_data.xlsx
     logo_path=D:\AI\logo.png
-    report_number=RPT-2026-001
-    company_name=XX公司
-    report_name=测试报告
-    watermark_text=张三 to 李四
+    font_name=微软雅黑
+    title1_size=16
     
     参数:
         config_path: 配置文件路径
@@ -1455,6 +1499,16 @@ def load_config(config_path):
         'watermark_text': None,
         'sheets': None,
         'merge': False,
+        # 字体配置
+        'font_name': '微软雅黑',
+        'title1_size': 16,
+        'title1_bold': True,
+        'title2_size': 12,
+        'title2_bold': True,
+        'title3_size': 12,
+        'title3_bold': False,
+        'body_size': 10.5,
+        'body_bold': False,
     }
     
     if not os.path.exists(config_path):
@@ -1483,10 +1537,14 @@ def load_config(config_path):
                     config[key] = True
                 elif value.lower() == 'false':
                     config[key] = False
+                elif key in ['title1_size', 'title2_size', 'title3_size', 'body_size']:
+                    # 字体大小配置（支持小数）
+                    try:
+                        config[key] = float(value)
+                    except:
+                        config[key] = float(config.get(key, 10.5))
                 elif key == 'sheets':
-                    # sheets可以是数字、字符串或列表
                     if ',' in value:
-                        # 列表形式：0,1,2 或 Sheet1,Sheet2
                         config[key] = [int(s.strip()) if s.strip().isdigit() else s.strip() for s in value.split(',')]
                     elif value.isdigit():
                         config[key] = int(value)
@@ -1540,6 +1598,30 @@ sheets=None
 # 合并模式（True=合并到一个Word，False=每个sheet单独生成）
 merge=False
 
+# ===== 字体配置 =====
+# 字体名称（默认微软雅黑）
+font_name=微软雅黑
+
+# 大标题字号（默认16=三号）
+title1_size=16
+# 大标题是否加粗（true/false）
+title1_bold=true
+
+# 次标题字号（默认12=小四）
+title2_size=12
+# 次标题是否加粗（true/false）
+title2_bold=true
+
+# 小标题字号（默认12=小四）
+title3_size=12
+# 小标题是否加粗（true/false）
+title3_bold=false
+
+# 正文字号（默认10.5=五号）
+body_size=10.5
+# 正文是否加粗（true/false）
+body_bold=false
+
 # ===== 输出配置 =====
 # 输出目录（None表示与Excel同目录）
 output_dir=None
@@ -1566,6 +1648,19 @@ def main():
     # 从配置文件加载参数
     config = load_config(config_path)
     
+    # 提取字体配置
+    font_config = {
+        'font_name': config.get('font_name', '微软雅黑'),
+        'title1_size': config.get('title1_size', 16),
+        'title1_bold': config.get('title1_bold', True),
+        'title2_size': config.get('title2_size', 12),
+        'title2_bold': config.get('title2_bold', True),
+        'title3_size': config.get('title3_size', 12),
+        'title3_bold': config.get('title3_bold', False),
+        'body_size': config.get('body_size', 10.5),
+        'body_bold': config.get('body_bold', False),
+    }
+    
     # 检查文件是否存在
     if not os.path.exists(config['excel_file']):
         print(f"错误: Excel文件不存在 - {config['excel_file']}")
@@ -1588,7 +1683,8 @@ def main():
         report_number=config['report_number'], 
         company_name=config['company_name'],
         watermark_text=config['watermark_text'],
-        report_name=config['report_name']
+        report_name=config['report_name'],
+        font_config=font_config
     )
 
     # 输出结果
