@@ -512,12 +512,17 @@ def _create_diagonal_watermark(watermark_text):
     返回:
         水印XML元素
     """
+    from lxml import etree
+    
+    # VML命名空间
+    VML_NS = 'urn:schemas-microsoft-com:vml'
+    
     # 创建背景元素
     background = OxmlElement('w:background')
     background.set(qn('w:color'), 'auto')
     
-    # 创建形状 - 使用简化的VML结构
-    shape = OxmlElement('v:shape')
+    # 创建形状 - 使用lxml创建带命名空间的元素
+    shape = etree.SubElement(background, '{%s}shape' % VML_NS)
     shape.set('id', 'PowerPlusWaterMarkObject')
     shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:-45;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center')
     shape.set('coordsize', '21600,21600')
@@ -526,18 +531,14 @@ def _create_diagonal_watermark(watermark_text):
     shape.set('stroked', 'f')
     
     # 填充设置
-    fill = OxmlElement('v:fill')
+    fill = etree.SubElement(shape, '{%s}fill' % VML_NS)
     fill.set('opacity', '.5')
     fill.set('on', 't')
-    shape.append(fill)
     
     # 文字路径
-    textpath = OxmlElement('v:textpath')
+    textpath = etree.SubElement(shape, '{%s}textpath' % VML_NS)
     textpath.set('style', 'font-family:"Calibri";font-size:"1pt"')
     textpath.set('string', watermark_text)
-    shape.append(textpath)
-    
-    background.append(shape)
     
     return background
 
