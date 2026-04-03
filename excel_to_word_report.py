@@ -16,6 +16,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import os
 import re
+from datetime import datetime
 
 
 # ==================== 智能字段映射配置 ====================
@@ -250,6 +251,194 @@ def set_table_border(table):
         tbl.insert(0, tblPr)
 
 
+def add_header_footer(doc, report_name, report_number, logo_path=None, company_name="公司"):
+    """
+    添加页眉和页脚
+    
+    参数:
+        doc: Word文档对象
+        report_name: 报告名称（文件名）
+        report_number: 报告编号
+        logo_path: Logo图片路径（可选）
+        company_name: 公司名称（用于保密信息）
+    """
+    from docx.enum.section import WD_ORIENT
+    
+    # 获取文档的第一个节
+    section = doc.sections[0]
+    
+    # ===== 设置页眉 =====
+    header = section.header
+    header.is_linked_to_previous = False
+    
+    # 清空默认段落
+    for para in header.paragraphs:
+        para.clear()
+    
+    # 创建页眉表格（3列：Logo+报告名 | 空 | 报告编号）
+    header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
+    header_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # 设置列宽
+    header_table.columns[0].width = Inches(4.0)  # Logo + 报告名
+    header_table.columns[1].width = Inches(1.5)  # 空白
+    header_table.columns[2].width = Inches(2.0)  # 报告编号
+    
+    # 第1列：Logo + 报告名称
+    cell_left = header_table.cell(0, 0)
+    para_left = cell_left.paragraphs[0]
+    para_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
+    # 添加Logo图片
+    if logo_path and os.path.exists(logo_path):
+        try:
+            run_logo = para_left.add_run()
+            run_logo.add_picture(logo_path, height=Pt(18))
+            # Logo后面加空格
+            para_left.add_run("  ")
+        except Exception as e:
+            print(f"警告: 无法添加Logo图片 - {e}")
+    
+    # 添加报告名称
+    run_name = para_left.add_run(report_name)
+    run_name.font.name = '宋体'
+    run_name.font.size = Pt(10)
+    run_name._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 第2列：空白
+    cell_middle = header_table.cell(0, 1)
+    cell_middle.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # 第3列：报告编号
+    cell_right = header_table.cell(0, 2)
+    para_right = cell_right.paragraphs[0]
+    para_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    run_number = para_right.add_run(f"报告编号:{report_number}")
+    run_number.font.name = '宋体'
+    run_number.font.size = Pt(10)
+    run_number._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 移除表格边框
+    set_table_border(header_table, show_border=False)
+    
+    # ===== 设置页脚 =====
+    footer = section.footer
+    footer.is_linked_to_previous = False
+    
+    # 清空默认段落
+    for para in footer.paragraphs:
+        para.clear()
+    
+    # 创建页脚表格（2列：保密信息 | 页码）
+    footer_table = footer.add_table(rows=1, cols=2, width=Inches(7.5))
+    footer_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # 设置列宽
+    footer_table.columns[0].width = Inches(5.5)  # 保密信息
+    footer_table.columns[1].width = Inches(2.0)  # 页码
+    
+    # 第1列：保密信息（居中）
+    cell_secret = footer_table.cell(0, 0)
+    para_secret = cell_secret.paragraphs[0]
+    para_secret.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_secret = para_secret.add_run(f"{company_name}保密信息，未经授权禁止扩散！")
+    run_secret.font.name = '宋体'
+    run_secret.font.size = Pt(9)
+    run_secret.font.bold = True
+    run_secret._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 第2列：页码（右对齐）
+    cell_page = footer_table.cell(0, 1)
+    para_page = cell_page.paragraphs[0]
+    para_page.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    
+    # 添加页码字段
+    run_page = para_page.add_run("第 ")
+    run_page.font.name = '宋体'
+    run_page.font.size = Pt(9)
+    run_page._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 添加当前页码字段
+    add_page_number_field(para_page)
+    
+    run_page2 = para_page.add_run(" 页，共 ")
+    run_page2.font.name = '宋体'
+    run_page2.font.size = Pt(9)
+    run_page2._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 添加总页数字段
+    add_total_pages_field(para_page)
+    
+    run_page3 = para_page.add_run(" 页")
+    run_page3.font.name = '宋体'
+    run_page3.font.size = Pt(9)
+    run_page3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 移除表格边框
+    set_table_border(footer_table, show_border=False)
+
+
+def set_table_border(table, show_border=True):
+    """
+    设置表格边框
+    
+    参数:
+        table: 表格对象
+        show_border: 是否显示边框，False则隐藏边框
+    """
+    tbl = table._tbl
+    tblPr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+    tblBorders = OxmlElement('w:tblBorders')
+
+    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        if show_border:
+            border.set(qn('w:val'), 'single')
+            border.set(qn('w:sz'), '4')
+            border.set(qn('w:color'), '000000')
+        else:
+            border.set(qn('w:val'), 'nil')
+        tblBorders.append(border)
+
+    tblPr.append(tblBorders)
+    if tbl.tblPr is None:
+        tbl.insert(0, tblPr)
+
+
+def add_page_number_field(paragraph):
+    """添加当前页码字段"""
+    run = paragraph.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    
+    instrText = OxmlElement('w:instrText')
+    instrText.text = "PAGE"
+    
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+
+
+def add_total_pages_field(paragraph):
+    """添加总页数字段"""
+    run = paragraph.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    
+    instrText = OxmlElement('w:instrText')
+    instrText.text = "NUMPAGES"
+    
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+
+
 def add_heading_with_number(doc, text, level=1):
     """添加带编号的标题"""
     heading = doc.add_heading(text, level=level)
@@ -329,16 +518,22 @@ def create_testcase_table(doc, data_dict):
 class ExcelToWordReport:
     """Excel转Word报告主类"""
 
-    def __init__(self, excel_path, word_path=None):
+    def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, company_name="公司"):
         """
         初始化
 
         参数:
             excel_path: Excel文件路径
             word_path: Word输出路径，默认同名
+            logo_path: Logo图片路径（页眉用）
+            report_number: 报告编号（页眉用），默认自动生成
+            company_name: 公司名称（页脚保密信息用）
         """
         self.excel_path = excel_path
         self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
+        self.logo_path = logo_path
+        self.report_number = report_number or self._generate_report_number()
+        self.company_name = company_name
 
         # 读取Excel
         self.df = None
@@ -349,6 +544,11 @@ class ExcelToWordReport:
         self.big_cases = []  # 大用例列表 [{'name': 'aaaa', 'small_cases': [...]}]
         self.summary_data = []  # 汇总数据
         self.col_name_to_idx = {}  # 列名到索引的映射
+    
+    def _generate_report_number(self):
+        """生成默认报告编号（日期+时间）"""
+        from datetime import datetime
+        return datetime.now().strftime("RPT%Y%m%d%H%M%S")
 
     def load_excel(self, sheet_name=0):
         """
@@ -646,6 +846,10 @@ class ExcelToWordReport:
         doc.styles['Normal'].font.name = '宋体'
         doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
 
+        # ===== 添加页眉页脚 =====
+        report_name = os.path.splitext(os.path.basename(self.word_path))[0]
+        add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
+
         # ===== 1. 概述 =====
         add_heading_with_number(doc, '1 概述', level=1)
 
@@ -816,7 +1020,8 @@ def list_sheets(excel_path):
             return xl.sheet_names
 
 
-def process_sheets(excel_path, sheets=None, output_dir=None, merge=False):
+def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
+                   logo_path=None, report_number=None, company_name="公司"):
     """
     处理指定的sheet，生成Word报告
 
@@ -829,6 +1034,9 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False):
                 - list: [0, 1, 2] 或 ["Sheet1", "Sheet2"]
         output_dir: 输出目录，None表示与Excel同目录
         merge: 是否合并多个sheet到一个Word文件
+        logo_path: Logo图片路径
+        report_number: 报告编号
+        company_name: 公司名称
 
     返回:
         生成的Word文件路径列表
@@ -851,10 +1059,12 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False):
 
     # 合并模式
     if merge and len(sheets_to_process) > 1:
-        return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir)
+        return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
+                                     logo_path, report_number, company_name)
     
     # 单独生成模式
-    return _generate_separate_reports(excel_path, sheets_to_process, output_dir)
+    return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
+                                      logo_path, report_number, company_name)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -891,7 +1101,8 @@ def _resolve_sheets(all_sheets, sheets):
     return list(dict.fromkeys(sheets_to_process))
 
 
-def _generate_separate_reports(excel_path, sheets_to_process, output_dir):
+def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
+                                logo_path=None, report_number=None, company_name="公司"):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -908,7 +1119,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir):
             word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
 
         try:
-            converter = ExcelToWordReport(excel_path, word_path)
+            converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, company_name)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -921,7 +1132,8 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir):
     return output_files
 
 
-def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
+def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
+                          logo_path=None, report_number=None, company_name="公司"):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -933,6 +1145,11 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir):
     doc = Document()
     doc.styles['Normal'].font.name = '宋体'
     doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    
+    # 添加页眉页脚
+    report_name = f"{base_name}_合并报告"
+    actual_report_number = report_number or f"RPT{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    add_header_footer(doc, report_name, actual_report_number, logo_path, company_name)
     
     # 添加总标题
     title = doc.add_heading(f'{base_name} 测试报告', level=0)
@@ -1032,6 +1249,11 @@ def main():
     excel_file = r"D:\AI\test_data.xlsx"  # Excel输入文件路径
     output_dir = None  # 输出目录，None表示与Excel同目录
 
+    # ===== 页眉页脚配置 =====
+    logo_path = None  # Logo图片路径，如 r"D:\AI\logo.png"，None则不显示Logo
+    report_number = None  # 报告编号，None则自动生成（如 RPT20260403100000）
+    company_name = "公司"  # 公司名称，用于页脚保密信息
+
     # 要处理的sheet配置:
     # 方式1: 处理所有sheet
     # sheets = None
@@ -1065,8 +1287,11 @@ def main():
     for i, name in enumerate(all_sheets):
         print(f"  [{i}] {name}")
 
-    # 处理sheet
-    output_files = process_sheets(excel_file, sheets, output_dir, merge)
+    # 处理sheet（传递页眉页脚配置）
+    output_files = process_sheets(excel_file, sheets, output_dir, merge, 
+                                  logo_path=logo_path, 
+                                  report_number=report_number, 
+                                  company_name=company_name)
 
     # 输出结果
     print(f"\n{'='*50}")
