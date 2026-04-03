@@ -499,61 +499,35 @@ def add_total_pages_field(paragraph):
 def add_watermark_to_docx(doc, watermark_text):
     """
     为文档添加斜向水印（从左下到右上）
+    通过在页眉中添加斜向文字实现
     
     参数:
         doc: Word文档对象
         watermark_text: 水印文字
     """
+    from docx.shared import RGBColor
+    
     # 为每个节添加水印
     for section in doc.sections:
-        sectPr = section._sectPr
+        header = section.header
         
-        # 创建水印
-        watermark_shape = _create_diagonal_watermark(watermark_text)
+        # 在页眉开头插入水印段落
+        watermark_para = header.add_paragraph()
+        watermark_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # 添加到节的设置
-        sectPr.append(watermark_shape)
-
-
-def _create_diagonal_watermark(watermark_text):
-    """
-    创建斜向水印（从左下角到右上角，旋转-45度）
-    
-    参数:
-        watermark_text: 水印文字
+        # 设置段落格式
+        watermark_para.paragraph_format.space_before = Pt(150)  # 向下偏移
+        watermark_para.paragraph_format.space_after = Pt(0)
         
-    返回:
-        水印XML元素
-    """
-    from lxml import etree
-    
-    # VML命名空间
-    VML_NS = 'urn:schemas-microsoft-com:vml'
-    
-    # 创建背景元素
-    background = OxmlElement('w:background')
-    background.set(qn('w:color'), 'auto')
-    
-    # 创建形状 - 使用lxml创建带命名空间的元素
-    shape = etree.SubElement(background, '{%s}shape' % VML_NS)
-    shape.set('id', 'PowerPlusWaterMarkObject')
-    shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:-45;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center')
-    shape.set('coordsize', '21600,21600')
-    shape.set('allowincell', 'f')
-    shape.set('filled', 't')
-    shape.set('stroked', 'f')
-    
-    # 填充设置
-    fill = etree.SubElement(shape, '{%s}fill' % VML_NS)
-    fill.set('opacity', '.5')
-    fill.set('on', 't')
-    
-    # 文字路径
-    textpath = etree.SubElement(shape, '{%s}textpath' % VML_NS)
-    textpath.set('style', 'font-family:"Calibri";font-size:"1pt"')
-    textpath.set('string', watermark_text)
-    
-    return background
+        # 添加水印文字（灰色、斜体、大号）
+        run = watermark_para.add_run(watermark_text)
+        run.font.name = 'Arial'
+        run.font.size = Pt(48)
+        run.font.italic = True
+        run.font.color.rgb = RGBColor(192, 192, 192)  # 浅灰色
+        
+        # 移动到页眉开头
+        header._element.insert(0, watermark_para._element)
 
 
 def add_heading_with_number(doc, text, level=1):
