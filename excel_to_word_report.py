@@ -439,6 +439,359 @@ def add_total_pages_field(paragraph):
     run._r.append(fldChar2)
 
 
+def add_watermark(doc, watermark_text):
+    """
+    为文档添加斜向水印（从左下角到右上角）
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字，如 "xxxx to xxxx"
+    """
+    from docx.oxml.ns import nsmap
+    
+    # 获取或创建文档的设置
+    for section in doc.sections:
+        # 获取节的XML
+        sectPr = section._sectPr
+        
+        # 创建水印
+        watermark = create_watermark_element(watermark_text)
+        
+        # 将水印添加到节的设置中
+        sectPr.append(watermark)
+
+
+def create_watermark_element(watermark_text):
+    """
+    创建水印XML元素
+    
+    参数:
+        watermark_text: 水印文字
+        
+    返回:
+        水印XML元素
+    """
+    # 水印使用 v:background 元素
+    # 需要定义VML命名空间
+    
+    # 创建一个包含水印的段落，放在页眉中
+    # 使用 w:background 方式更简单
+    
+    # 方法：在文档中添加一个全透明的背景图片文字
+    # 这里使用更简单的方式：通过修改页眉添加斜向文字
+    
+    # 创建 watermark 元素
+    watermark = OxmlElement('w:background')
+    watermark.set(qn('w:color'), 'FFFFFF')  # 白色背景
+    
+    # 实际上python-docx不支持直接添加水印，需要用其他方式
+    # 我们使用在页眉中添加斜向文字的方式模拟水印
+    
+    return watermark
+
+
+def add_diagonal_watermark(doc, watermark_text):
+    """
+    添加斜向水印（通过页眉实现）
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字
+    """
+    # 由于python-docx不直接支持水印，我们通过以下方式实现：
+    # 在页眉中添加一个无边框的文本框，旋转45度
+    
+    # 获取第一个节
+    section = doc.sections[0]
+    header = section.header
+    
+    # 创建一个表格作为水印容器（无边框，透明背景）
+    # 放置在页面中央，文字斜向显示
+    
+    # 实际上，Word水印需要使用特定的XML结构
+    # 这里我们使用VML图形来实现
+    
+    # 添加VML命名空间的水印
+    _add_vml_watermark(header, watermark_text)
+
+
+def _add_vml_watermark(header, watermark_text):
+    """
+    使用VML添加水印到页眉
+    
+    参数:
+        header: 页眉对象
+        watermark_text: 水印文字
+    """
+    # 在页眉中添加一个段落，包含水印图形
+    para = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
+    
+    # 创建一个包含VML图形的run
+    # VML水印需要特定的XML结构
+    
+    # 由于python-docx的限制，我们使用另一种方法：
+    # 在文档级别添加水印
+    
+    pass  # VML方法复杂，改用其他方式
+
+
+def add_watermark_to_document(doc, watermark_text):
+    """
+    为整个文档添加水印（修改文档XML）
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字
+    """
+    # 获取文档的settings部分
+    from docx.parts.settings import SettingsPart
+    
+    # 遍历所有节，为每个节添加水印
+    for section in doc.sections:
+        sectPr = section._sectPr
+        
+        # 检查是否已有水印
+        existing_watermark = sectPr.find(qn('w:background'))
+        if existing_watermark is not None:
+            sectPr.remove(existing_watermark)
+        
+        # 创建背景元素（水印）
+        background = OxmlElement('w:background')
+        background.set(qn('w:color'), 'FFFFFF')
+        
+        # 添加水印内容
+        # 使用 v:background 和 v:fill 实现文字水印
+        # 这需要在文档中嵌入VML图形
+        
+        # 由于python-docx的限制，我们采用另一种方案：
+        # 使用 reportlab 或直接修改 docx 的 XML
+        
+        sectPr.append(background)
+
+
+def create_text_watermark_xml(watermark_text, width=595, height=842):
+    """
+    创建文字水印的XML（用于嵌入到docx）
+    
+    参数:
+        watermark_text: 水印文字
+        width: 页面宽度（points）
+        height: 页面高度（points）
+        
+    返回:
+        水印XML字符串
+    """
+    # VML格式的文字水印
+    vml_watermark = f'''
+    <v:background id="_x0000_s1025" o:allowincell="f">
+        <v:fill on="t" type="frame" size="512,512" 
+                src="" o:title="{watermark_text}"
+                opacity="0.5f"/>
+        <v:textbox>
+            <v:textpath style="font-family:&quot;Arial&quot;;font-size:1pt" 
+                        on="t" fitshape="t" string="{watermark_text}"/>
+        </v:textbox>
+        <v:shadow on="t" type="emboss" opacity="0.5f"/>
+    </v:background>
+    '''
+    return vml_watermark
+
+
+def add_watermark_via_header(doc, watermark_text):
+    """
+    通过在页眉中添加斜向文字实现水印效果
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字
+    """
+    # 这个方法在每个页面的页眉添加一个斜向的文字框
+    # 虽然不是真正的水印，但视觉效果类似
+    
+    for section in doc.sections:
+        header = section.header
+        
+        # 在页眉开头插入水印段落
+        watermark_para = header.add_paragraph()
+        watermark_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # 添加水印文字（灰色、斜体、大号）
+        run = watermark_para.add_run(watermark_text)
+        run.font.name = 'Arial'
+        run.font.size = Pt(72)
+        run.font.italic = True
+        run.font.color.rgb = None  # 需要设置灰色
+        
+        # 设置灰色
+        from docx.shared import RGBColor
+        run.font.color.rgb = RGBColor(200, 200, 200)
+        
+        # 移动到页眉开头
+        header._element.insert(0, watermark_para._element)
+
+
+def add_real_watermark(doc, watermark_text):
+    """
+    添加真正的Word水印（通过修改XML）
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字
+    """
+    from docx.oxml.ns import nsmap
+    import copy
+    
+    # 定义命名空间
+    VML_NS = 'urn:schemas-microsoft-com:vml'
+    OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
+    
+    # 注册命名空间
+    nsmap_custom = {
+        'v': VML_NS,
+        'o': OFFICE_NS,
+        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+    }
+    
+    # 为每个节添加水印
+    for section in doc.sections:
+        sectPr = section._sectPr
+        
+        # 创建背景元素
+        background = OxmlElement('w:background')
+        background.set(qn('w:color'), 'FFFFFF')
+        
+        # 创建VML形状（水印）
+        shape = _create_watermark_shape(watermark_text)
+        background.append(shape)
+        
+        # 添加到节设置
+        sectPr.append(background)
+
+
+def _create_watermark_shape(watermark_text):
+    """
+    创建水印VML形状
+    
+    参数:
+        watermark_text: 水印文字
+        
+    返回:
+        VML形状元素
+    """
+    # VML命名空间
+    VML_NS = 'urn:schemas-microsoft-com:vml'
+    OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
+    
+    # 创建shape元素
+    shape = OxmlElement('{%s}shape' % VML_NS)
+    shape.set('{%s}id' % VML_NS, 'WordWatermark')
+    shape.set('{%s}coordsize' % VML_NS, '21600,21600')
+    shape.set('{%s}allowincell' % OFFICE_NS, 'f')
+    shape.set('{%s}filled' % VML_NS, 't')
+    shape.set('{%s}stroked' % VML_NS, 'f')
+    shape.set('{%s}type' % VML_NS, '#_x0000_t136')  # 斜向文字类型
+    
+    # 设置形状样式（位置、大小、旋转）
+    style = 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:315;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center'
+    shape.set('{%s}style' % VML_NS, style)
+    
+    # 创建填充元素
+    fill = OxmlElement('{%s}fill' % VML_NS)
+    fill.set('{%s}on' % VML_NS, 't')
+    fill.set('{%s}opacity' % VML_NS, '0.5')
+    fill.set('{%s}color2' % VML_NS, '#CCCCCC')
+    
+    # 创建文字路径
+    textpath = OxmlElement('{%s}textpath' % VML_NS)
+    textpath.set('{%s}on' % VML_NS, 't')
+    textpath.set('{%s}string' % VML_NS, watermark_text)
+    textpath.set('{%s}style' % VML_NS, 'font-family:"Arial";font-size:1pt')
+    
+    shape.append(fill)
+    shape.append(textpath)
+    
+    return shape
+
+
+def add_watermark_to_docx(doc, watermark_text):
+    """
+    为文档添加斜向水印（从左下到右上）
+    使用VML图形实现真正的Word水印
+    
+    参数:
+        doc: Word文档对象
+        watermark_text: 水印文字
+    """
+    # 获取文档的XML命名空间
+    from lxml import etree
+    
+    # VML和Office命名空间
+    VML = '{urn:schemas-microsoft-com:vml}'
+    OFFICE = '{urn:schemas-microsoft-com:office:office}'
+    
+    # 为每个节添加水印
+    for section in doc.sections:
+        sectPr = section._sectPr
+        
+        # 创建水印形状
+        watermark_shape = _create_diagonal_watermark(watermark_text)
+        
+        # 添加到节的设置
+        sectPr.append(watermark_shape)
+
+
+def _create_diagonal_watermark(watermark_text):
+    """
+    创建斜向水印（从左下角到右上角，旋转-45度）
+    
+    参数:
+        watermark_text: 水印文字
+        
+    返回:
+        水印XML元素
+    """
+    # 使用VML创建水印
+    VML = '{urn:schemas-microsoft-com:vml}'
+    OFFICE = '{urn:schemas-microsoft-com:office:office}'
+    
+    # 创建背景元素
+    background = OxmlElement('w:background')
+    background.set(qn('w:color'), 'auto')
+    
+    # 创建形状组
+    shapetype = OxmlElement(VML + 'shapetype')
+    shapetype.set('id', '_x0000_t136')
+    shapetype.set('coordsize', '21600,21600')
+    shapetype.set('spt', '136')
+    shapetype.set('adj', '10800')
+    shapetype.set('path', 'm@7,l@8,m@5,21600l@6,21600e')
+    
+    # 创建形状
+    shape = OxmlElement(VML + 'shape')
+    shape.set('id', 'PowerPlusWaterMarkObject')
+    shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:-45;z-index:-251657216;mso-position-horizontal:center;mso-position-vertical:center')
+    shape.set('coordsize', '21600,21600')
+    shape.set('allowincell', 'f')
+    shape.set('filled', 't')
+    shape.set('stroked', 'f')
+    
+    # 填充设置
+    fill = OxmlElement(VML + 'fill')
+    fill.set('opacity', '.5')
+    fill.set('on', 't')
+    shape.append(fill)
+    
+    # 文字路径
+    textpath = OxmlElement(VML + 'textpath')
+    textpath.set('style', 'font-family:"Calibri";font-size:"1pt"')
+    textpath.set('string', watermark_text)
+    shape.append(textpath)
+    
+    background.append(shape)
+    
+    return background
+
+
 def add_heading_with_number(doc, text, level=1):
     """添加带编号的标题"""
     heading = doc.add_heading(text, level=level)
@@ -518,7 +871,8 @@ def create_testcase_table(doc, data_dict):
 class ExcelToWordReport:
     """Excel转Word报告主类"""
 
-    def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, company_name="公司"):
+    def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
+                 company_name="公司", watermark_text=None):
         """
         初始化
 
@@ -528,12 +882,14 @@ class ExcelToWordReport:
             logo_path: Logo图片路径（页眉用）
             report_number: 报告编号（页眉用），默认自动生成
             company_name: 公司名称（页脚保密信息用）
+            watermark_text: 水印文字，如 "xxxx to xxxx"
         """
         self.excel_path = excel_path
         self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
         self.logo_path = logo_path
         self.report_number = report_number or self._generate_report_number()
         self.company_name = company_name
+        self.watermark_text = watermark_text
 
         # 读取Excel
         self.df = None
@@ -850,6 +1206,10 @@ class ExcelToWordReport:
         report_name = os.path.splitext(os.path.basename(self.word_path))[0]
         add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
 
+        # ===== 添加水印 =====
+        if self.watermark_text:
+            add_watermark_to_docx(doc, self.watermark_text)
+
         # ===== 1. 概述 =====
         add_heading_with_number(doc, '1 概述', level=1)
 
@@ -1021,7 +1381,7 @@ def list_sheets(excel_path):
 
 
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
-                   logo_path=None, report_number=None, company_name="公司"):
+                   logo_path=None, report_number=None, company_name="公司", watermark_text=None):
     """
     处理指定的sheet，生成Word报告
 
@@ -1037,6 +1397,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         logo_path: Logo图片路径
         report_number: 报告编号
         company_name: 公司名称
+        watermark_text: 水印文字
 
     返回:
         生成的Word文件路径列表
@@ -1060,11 +1421,11 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
     # 合并模式
     if merge and len(sheets_to_process) > 1:
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
-                                     logo_path, report_number, company_name)
+                                     logo_path, report_number, company_name, watermark_text)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                      logo_path, report_number, company_name)
+                                      logo_path, report_number, company_name, watermark_text)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -1102,7 +1463,7 @@ def _resolve_sheets(all_sheets, sheets):
 
 
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                logo_path=None, report_number=None, company_name="公司"):
+                                logo_path=None, report_number=None, company_name="公司", watermark_text=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -1119,7 +1480,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
             word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
 
         try:
-            converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, company_name)
+            converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, company_name, watermark_text)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -1133,7 +1494,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
 
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
-                          logo_path=None, report_number=None, company_name="公司"):
+                          logo_path=None, report_number=None, company_name="公司", watermark_text=None):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -1150,6 +1511,10 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
     report_name = f"{base_name}_合并报告"
     actual_report_number = report_number or f"RPT{datetime.now().strftime('%Y%m%d%H%M%S')}"
     add_header_footer(doc, report_name, actual_report_number, logo_path, company_name)
+    
+    # 添加水印
+    if watermark_text:
+        add_watermark_to_docx(doc, watermark_text)
     
     # 添加总标题
     title = doc.add_heading(f'{base_name} 测试报告', level=0)
@@ -1254,6 +1619,9 @@ def main():
     report_number = None  # 报告编号，None则自动生成（如 RPT20260403100000）
     company_name = "公司"  # 公司名称，用于页脚保密信息
 
+    # ===== 水印配置 =====
+    watermark_text = None  # 水印文字，如 "xxxx to xxxx"，None则不添加水印
+
     # 要处理的sheet配置:
     # 方式1: 处理所有sheet
     # sheets = None
@@ -1287,11 +1655,12 @@ def main():
     for i, name in enumerate(all_sheets):
         print(f"  [{i}] {name}")
 
-    # 处理sheet（传递页眉页脚配置）
+    # 处理sheet（传递页眉页脚和水印配置）
     output_files = process_sheets(excel_file, sheets, output_dir, merge, 
                                   logo_path=logo_path, 
                                   report_number=report_number, 
-                                  company_name=company_name)
+                                  company_name=company_name,
+                                  watermark_text=watermark_text)
 
     # 输出结果
     print(f"\n{'='*50}")
