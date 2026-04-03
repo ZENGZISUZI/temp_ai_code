@@ -1224,13 +1224,17 @@ class ExcelToWordReport:
                 category = item.get('试验分类', '')
                 
                 if category != current_category:
-                    if current_category is not None and row_idx > merge_start + 1:
-                        summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                    # 合并前一个分类的单元格
+                    if current_category is not None and row_idx - 1 >= merge_start:
+                        if row_idx - 1 > merge_start:  # 至少2行才合并
+                            summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
                     current_category = category
                     merge_start = row_idx
             
-            if len(self.summary_data) > 1 and merge_start < len(self.summary_data):
-                summary_table.cell(merge_start, 1).merge(summary_table.cell(len(self.summary_data), 1))
+            # 合并最后一个分类
+            last_row = len(self.summary_data)
+            if last_row > merge_start:
+                summary_table.cell(merge_start, 1).merge(summary_table.cell(last_row, 1))
 
         doc.add_paragraph()
 
