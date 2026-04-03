@@ -508,34 +508,47 @@ def add_total_pages_field(paragraph):
 
 def add_watermark_to_docx(doc, watermark_text):
     """
-    为文档添加斜向水印（从左下到右上）
-    通过在页眉中添加斜向文字实现
+    为文档添加斜向水印（从左下角到右上角）
+    水印在底层，正文内容浮在上面
     
     参数:
         doc: Word文档对象
         watermark_text: 水印文字
     """
-    from docx.shared import RGBColor
+    from lxml import etree
     
     # 为每个节添加水印
     for section in doc.sections:
         header = section.header
         
-        # 在页眉末尾添加水印段落（在表格之后）
+        # 创建水印段落
         watermark_para = header.add_paragraph()
-        watermark_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pPr = watermark_para._p.get_or_add_pPr()
         
-        # 设置段落格式 - 让水印显示在页面中央
-        watermark_para.paragraph_format.space_before = Pt(200)  # 向下偏移到页面中央
-        watermark_para.paragraph_format.space_after = Pt(0)
-        watermark_para.paragraph_format.line_spacing = 1.0
+        # 创建VML形状（斜向水印）
+        VML_NS = 'urn:schemas-microsoft-com:vml'
+        OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
         
-        # 添加水印文字（灰色、斜体、大号）
-        run = watermark_para.add_run(watermark_text)
-        run.font.name = 'Arial'
-        run.font.size = Pt(60)
-        run.font.italic = True
-        run.font.color.rgb = RGBColor(200, 200, 200)  # 浅灰色
+        # 水印形状XML
+        shape = etree.SubElement(watermark_para._p, '{%s}shape' % VML_NS)
+        shape.set('id', 'Watermark')
+        # 斜向315度（从左下到右上），z-index负值让水印在底层
+        shape.set('style', 'position:absolute;margin-left:0;margin-top:0;width:400pt;height:80pt;rotation:315;z-index:-1;mso-position-horizontal:center;mso-position-vertical:center;mso-position-horizontal-relative:page;mso-position-vertical-relative:page')
+        shape.set('coordsize', '21600,21600')
+        shape.set('allowincell', 'f')
+        shape.set('filled', 't')
+        shape.set('stroked', 'f')
+        
+        # 填充设置（半透明灰色）
+        fill = etree.SubElement(shape, '{%s}fill' % VML_NS)
+        fill.set('opacity', '0.3')
+        fill.set('on', 't')
+        
+        # 文字路径
+        textpath = etree.SubElement(shape, '{%s}textpath' % VML_NS)
+        textpath.set('style', 'font-family:"Arial";font-size:36pt')
+        textpath.set('on', 't')
+        textpath.set('string', watermark_text)
 
 
 def add_heading_with_number(doc, text, level=1):
