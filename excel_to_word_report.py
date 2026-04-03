@@ -296,7 +296,7 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     if logo_path and os.path.exists(logo_path):
         try:
             run_logo = para_left.add_run()
-            run_logo.add_picture(logo_path, height=Pt(18))
+            run_logo.add_picture(logo_path, width=Cm(0.75), height=Cm(0.49))
             para_left.add_run("  ")
         except Exception as e:
             print(f"警告: 无法添加Logo图片 - {e}")
