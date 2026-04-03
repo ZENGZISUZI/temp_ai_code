@@ -288,16 +288,15 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     cell_left = header_table.cell(0, 0)
     para_left = cell_left.paragraphs[0]
     para_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    # 设置段落间距为0
     para_left.paragraph_format.space_before = Pt(0)
     para_left.paragraph_format.space_after = Pt(0)
+    para_left.paragraph_format.line_spacing = 1.0
     
     # 添加Logo图片
     if logo_path and os.path.exists(logo_path):
         try:
             run_logo = para_left.add_run()
             run_logo.add_picture(logo_path, height=Pt(18))
-            # Logo后面加空格
             para_left.add_run("  ")
         except Exception as e:
             print(f"警告: 无法添加Logo图片 - {e}")
@@ -318,19 +317,14 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     para_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     para_right.paragraph_format.space_before = Pt(0)
     para_right.paragraph_format.space_after = Pt(0)
+    para_right.paragraph_format.line_spacing = 1.0
     run_number = para_right.add_run(f"报告编号:{report_number}")
     run_number.font.name = '宋体'
     run_number.font.size = Pt(10)
     run_number._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
-    # 移除表格边框
-    set_table_border(header_table, show_border=False)
-    
-    # 添加页眉底部横线（紧贴内容）
-    header_para = header.add_paragraph()
-    header_para.paragraph_format.space_before = Pt(0)
-    header_para.paragraph_format.space_after = Pt(0)
-    set_paragraph_bottom_border(header_para)
+    # 设置表格只有底部边框（横线紧贴文字）
+    set_table_border_with_bottom_line(header_table)
     
     # ===== 设置页脚 =====
     footer = section.footer
@@ -339,12 +333,6 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     # 清空默认段落
     for para in footer.paragraphs:
         para.clear()
-    
-    # 添加页脚顶部横线（紧贴内容）
-    footer_line_para = footer.add_paragraph()
-    footer_line_para.paragraph_format.space_before = Pt(0)
-    footer_line_para.paragraph_format.space_after = Pt(0)
-    set_paragraph_top_border(footer_line_para)
     
     # 创建页脚表格（2列：保密信息 | 页码）
     footer_table = footer.add_table(rows=1, cols=2, width=Inches(7.5))
@@ -360,6 +348,7 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     para_secret.alignment = WD_ALIGN_PARAGRAPH.CENTER
     para_secret.paragraph_format.space_before = Pt(0)
     para_secret.paragraph_format.space_after = Pt(0)
+    para_secret.paragraph_format.line_spacing = 1.0
     run_secret = para_secret.add_run(f"{company_name}保密信息，未经授权禁止扩散！")
     run_secret.font.name = '宋体'
     run_secret.font.size = Pt(9)
@@ -372,6 +361,7 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     para_page.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     para_page.paragraph_format.space_before = Pt(0)
     para_page.paragraph_format.space_after = Pt(0)
+    para_page.paragraph_format.line_spacing = 1.0
     
     # 添加页码字段
     run_page = para_page.add_run("第 ")
@@ -379,7 +369,6 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     run_page.font.size = Pt(9)
     run_page._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
-    # 添加当前页码字段
     add_page_number_field(para_page)
     
     run_page2 = para_page.add_run(" 页，共 ")
@@ -387,7 +376,6 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     run_page2.font.size = Pt(9)
     run_page2._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
-    # 添加总页数字段
     add_total_pages_field(para_page)
     
     run_page3 = para_page.add_run(" 页")
@@ -395,44 +383,66 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     run_page3.font.size = Pt(9)
     run_page3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
-    # 移除表格边框
-    set_table_border(footer_table, show_border=False)
+    # 设置表格只有顶部边框（横线紧贴文字）
+    set_table_border_with_top_line(footer_table)
 
 
-def set_paragraph_bottom_border(paragraph):
+def set_table_border_with_bottom_line(table):
     """
-    为段落设置底部边框（横线）
+    设置表格只有底部边框线（用于页眉）
     
     参数:
-        paragraph: 段落对象
+        table: 表格对象
     """
-    pPr = paragraph._p.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
+    tbl = table._tbl
+    tblPr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+    tblBorders = OxmlElement('w:tblBorders')
+
+    # 只设置底部边框
+    for border_name in ['top', 'left', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'nil')
+        tblBorders.append(border)
+    
+    # 底部边框显示
     bottom = OxmlElement('w:bottom')
     bottom.set(qn('w:val'), 'single')
-    bottom.set(qn('w:sz'), '6')  # 线条粗细
-    bottom.set(qn('w:space'), '0')  # 紧贴内容
+    bottom.set(qn('w:sz'), '6')
     bottom.set(qn('w:color'), '000000')
-    pBdr.append(bottom)
-    pPr.append(pBdr)
+    tblBorders.append(bottom)
+
+    tblPr.append(tblBorders)
+    if tbl.tblPr is None:
+        tbl.insert(0, tblPr)
 
 
-def set_paragraph_top_border(paragraph):
+def set_table_border_with_top_line(table):
     """
-    为段落设置顶部边框（横线）
+    设置表格只有顶部边框线（用于页脚）
     
     参数:
-        paragraph: 段落对象
+        table: 表格对象
     """
-    pPr = paragraph._p.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
+    tbl = table._tbl
+    tblPr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+    tblBorders = OxmlElement('w:tblBorders')
+
+    # 只设置顶部边框
+    for border_name in ['bottom', 'left', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'nil')
+        tblBorders.append(border)
+    
+    # 顶部边框显示
     top = OxmlElement('w:top')
     top.set(qn('w:val'), 'single')
-    top.set(qn('w:sz'), '6')  # 线条粗细
-    top.set(qn('w:space'), '0')  # 紧贴内容
+    top.set(qn('w:sz'), '6')
     top.set(qn('w:color'), '000000')
-    pBdr.append(top)
-    pPr.append(pBdr)
+    tblBorders.append(top)
+
+    tblPr.append(tblBorders)
+    if tbl.tblPr is None:
+        tbl.insert(0, tblPr)
 
 
 def set_table_border(table, show_border=True):
