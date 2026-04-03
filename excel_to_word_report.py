@@ -561,7 +561,7 @@ def add_watermark_to_docx(doc, watermark_text):
 
 def add_heading_with_number(doc, text, level=1, font_config=None):
     """
-    添加带编号的标题（使用Word标题样式，支持目录生成）
+    添加带编号的标题（使用Word标题样式，支持目录和导航窗格）
     
     参数:
         doc: Word文档对象
@@ -583,7 +583,7 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
     if font_config:
         config.update(font_config)
     
-    # 使用Word标题样式（支持目录）
+    # 使用Word标题样式（支持目录和导航窗格）
     heading = doc.add_heading(text, level=level)
     heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
@@ -603,6 +603,49 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
             run.font.bold = config['title3_bold']
     
     return heading
+
+
+def setup_heading_styles(doc, font_config=None):
+    """
+    设置Word标题样式（确保导航窗格能识别）
+    
+    参数:
+        doc: Word文档对象
+        font_config: 字体配置字典
+    """
+    default_config = {
+        'font_name': '微软雅黑',
+        'title1_size': 16,
+        'title1_bold': True,
+        'title2_size': 12,
+        'title2_bold': True,
+        'title3_size': 12,
+        'title3_bold': False,
+    }
+    config = default_config.copy()
+    if font_config:
+        config.update(font_config)
+    
+    # 设置 Heading 1 样式
+    style1 = doc.styles['Heading 1']
+    style1.font.name = config['font_name']
+    style1.font.size = Pt(config['title1_size'])
+    style1.font.bold = config['title1_bold']
+    style1._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
+    
+    # 设置 Heading 2 样式
+    style2 = doc.styles['Heading 2']
+    style2.font.name = config['font_name']
+    style2.font.size = Pt(config['title2_size'])
+    style2.font.bold = config['title2_bold']
+    style2._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
+    
+    # 设置 Heading 3 样式
+    style3 = doc.styles['Heading 3']
+    style3.font.name = config['font_name']
+    style3.font.size = Pt(config['title3_size'])
+    style3.font.bold = config['title3_bold']
+    style3._element.rPr.rFonts.set(qn('w:eastAsia'), config['font_name'])
 
 
 def add_body_paragraph(doc, text, font_config=None):
@@ -1063,6 +1106,9 @@ class ExcelToWordReport:
         doc.styles['Normal'].font.name = font_name
         doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         doc.styles['Normal'].font.size = Pt(body_size)
+        
+        # 设置标题样式（确保导航窗格能识别）
+        setup_heading_styles(doc, self.font_config)
 
         # ===== 添加页眉页脚 =====
         report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
