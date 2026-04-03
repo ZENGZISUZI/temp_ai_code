@@ -1281,7 +1281,9 @@ class ExcelToWordReport:
             print(f"  行{idx+1}: 试验分类={item.get('试验分类', '')}, 试验项目={item.get('试验项目', '')}")
         
         # 合并相同试验分类的单元格并设置居中
-        if self.summary_data:
+        if len(self.summary_data) > 0:
+            # 找出所有需要合并的范围
+            merge_ranges = []  # [(start_row, end_row), ...]
             current_category = None
             merge_start = 1
             
@@ -1289,29 +1291,26 @@ class ExcelToWordReport:
                 category = item.get('试验分类', '')
                 
                 if category != current_category:
-                    # 合并前一个分类的单元格
-                    if current_category is not None and row_idx - 1 >= merge_start:
-                        if row_idx - 1 > merge_start:  # 至少2行才合并
-                            print(f"  合并单元格: 第{merge_start}行 到 第{row_idx-1}行, 分类={current_category}")
-                            merged_cell = summary_table.cell(merge_start, 1)
-                            merged_cell.merge(summary_table.cell(row_idx - 1, 1))
-                            # 设置合并后居中
-                            merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-                            for para in merged_cell.paragraphs:
-                                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    if current_category is not None:
+                        merge_ranges.append((merge_start, row_idx - 1))
                     current_category = category
                     merge_start = row_idx
             
-            # 合并最后一个分类
-            last_row = len(self.summary_data)
-            if last_row > merge_start:
-                print(f"  合并最后单元格: 第{merge_start}行 到 第{last_row}行, 分类={current_category}")
-                merged_cell = summary_table.cell(merge_start, 1)
-                merged_cell.merge(summary_table.cell(last_row, 1))
-                # 设置合并后居中
-                merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-                for para in merged_cell.paragraphs:
-                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # 添加最后一个分类
+            if current_category is not None:
+                merge_ranges.append((merge_start, len(self.summary_data)))
+            
+            # 执行合并
+            print(f"\n合并范围: {merge_ranges}")
+            for start, end in merge_ranges:
+                if end > start:  # 至少2行才合并
+                    print(f"  合并第{start}行到第{end}行")
+                    merged_cell = summary_table.cell(start, 1)
+                    merged_cell.merge(summary_table.cell(end, 1))
+                    # 设置合并后居中
+                    merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                    for para in merged_cell.paragraphs:
+                        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         doc.add_paragraph()
 
