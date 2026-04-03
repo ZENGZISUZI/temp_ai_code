@@ -205,14 +205,14 @@ def smart_match_field(field_name, excel_columns):
     return None
 
 
-def set_cell_font(cell, font_name='宋体', font_size=10.5, bold=False, align_center=True):
+def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, align_center=True):
     """
     设置单元格字体和对齐方式
     
     参数:
         cell: 单元格对象
-        font_name: 字体名称
-        font_size: 字体大小
+        font_name: 字体名称（默认微软雅黑）
+        font_size: 字体大小（默认五号10.5pt）
         bold: 是否加粗
         align_center: 是否居中对齐
     """
@@ -560,13 +560,54 @@ def add_watermark_to_docx(doc, watermark_text):
 
 
 def add_heading_with_number(doc, text, level=1):
-    """添加带编号的标题"""
-    heading = doc.add_heading(text, level=level)
-    heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    for run in heading.runs:
-        run.font.name = '黑体'
-        run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
-    return heading
+    """
+    添加带编号的标题
+    
+    参数:
+        doc: Word文档对象
+        text: 标题文字
+        level: 标题级别（1=大标题，2=次标题，3=小标题）
+    """
+    para = doc.add_paragraph()
+    para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
+    run = para.add_run(text)
+    run.font.name = '微软雅黑'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+    
+    if level == 1:
+        # 大标题：三号(16pt)，加粗
+        run.font.size = Pt(16)
+        run.font.bold = True
+    elif level == 2:
+        # 次标题：小四(12pt)，加粗
+        run.font.size = Pt(12)
+        run.font.bold = True
+    else:
+        # 小标题：小四(12pt)，不加粗
+        run.font.size = Pt(12)
+        run.font.bold = False
+    
+    return para
+
+
+def add_body_paragraph(doc, text):
+    """
+    添加正文段落（微软雅黑，五号字体）
+    
+    参数:
+        doc: Word文档对象
+        text: 正文内容
+    """
+    para = doc.add_paragraph()
+    para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
+    run = para.add_run(text)
+    run.font.name = '微软雅黑'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+    run.font.size = Pt(10.5)  # 五号字
+    
+    return para
 
 
 def create_testcase_table(doc, data_dict):
@@ -599,23 +640,23 @@ def create_testcase_table(doc, data_dict):
     
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
-    set_cell_font(table.cell(0, 0), bold=True)
+    set_cell_font(table.cell(0, 0), bold=True, font_size=10.5)
     table.cell(0, 1).text = str(data_dict.get('开始日期', ''))
-    set_cell_font(table.cell(0, 1))
+    set_cell_font(table.cell(0, 1), font_size=10.5)
     table.cell(0, 2).text = '结束日期'
-    set_cell_font(table.cell(0, 2), bold=True)
+    set_cell_font(table.cell(0, 2), bold=True, font_size=10.5)
     table.cell(0, 3).text = str(data_dict.get('结束日期', ''))
-    set_cell_font(table.cell(0, 3))
+    set_cell_font(table.cell(0, 3), font_size=10.5)
     
     # 第二行：样机数量 | 值 | 样机编号 | 值
     table.cell(1, 0).text = '样机数量'
-    set_cell_font(table.cell(1, 0), bold=True)
+    set_cell_font(table.cell(1, 0), bold=True, font_size=10.5)
     table.cell(1, 1).text = str(data_dict.get('样机数量', ''))
-    set_cell_font(table.cell(1, 1))
+    set_cell_font(table.cell(1, 1), font_size=10.5)
     table.cell(1, 2).text = '样机编号'
-    set_cell_font(table.cell(1, 2), bold=True)
+    set_cell_font(table.cell(1, 2), bold=True, font_size=10.5)
     table.cell(1, 3).text = str(data_dict.get('样机编号', ''))
-    set_cell_font(table.cell(1, 3))
+    set_cell_font(table.cell(1, 3), font_size=10.5)
     
     # 第三行起：字段名占1列，值合并3列
     for i, field in enumerate(remaining_fields):
@@ -626,10 +667,10 @@ def create_testcase_table(doc, data_dict):
         
         # 填充内容
         table.cell(row_idx, 0).text = field
-        set_cell_font(table.cell(row_idx, 0), bold=True)
+        set_cell_font(table.cell(row_idx, 0), bold=True, font_size=10.5)
         value = data_dict.get(field, '')
         table.cell(row_idx, 1).text = str(value) if value else ''
-        set_cell_font(table.cell(row_idx, 1))
+        set_cell_font(table.cell(row_idx, 1), font_size=10.5)
 
     doc.add_paragraph()  # 空行
     return table
@@ -967,9 +1008,10 @@ class ExcelToWordReport:
         """生成Word报告"""
         doc = Document()
 
-        # 设置默认字体
-        doc.styles['Normal'].font.name = '宋体'
-        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+        # 设置默认字体为微软雅黑五号
+        doc.styles['Normal'].font.name = '微软雅黑'
+        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+        doc.styles['Normal'].font.size = Pt(10.5)  # 五号字
 
         # ===== 添加页眉页脚 =====
         # 报告名称：优先使用配置的名称，否则使用文件名
@@ -980,26 +1022,26 @@ class ExcelToWordReport:
         if self.watermark_text:
             add_watermark_to_docx(doc, self.watermark_text)
 
-        # ===== 1. 概述 =====
+        # ===== 1. 概述（大标题）=====
         add_heading_with_number(doc, '1 概述', level=1)
 
-        # 1.1 产品信息
+        # 1.1 产品信息（次标题）
         add_heading_with_number(doc, '1.1 产品信息', level=2)
-        doc.add_paragraph(self.overview_data.get('产品信息', '（待填写）'))
+        add_body_paragraph(doc, self.overview_data.get('产品信息', '（待填写）'))
 
-        # 1.2 试验信息
+        # 1.2 试验信息（次标题）
         add_heading_with_number(doc, '1.2 试验信息', level=2)
-        doc.add_paragraph(self.overview_data.get('试验信息', '（待填写）'))
+        add_body_paragraph(doc, self.overview_data.get('试验信息', '（待填写）'))
 
-        # 1.3 工作模式
+        # 1.3 工作模式（次标题）
         add_heading_with_number(doc, '1.3 工作模式', level=2)
-        doc.add_paragraph(self.overview_data.get('工作模式', '（待填写）'))
+        add_body_paragraph(doc, self.overview_data.get('工作模式', '（待填写）'))
 
-        # 1.4 测试仪器设备
+        # 1.4 测试仪器设备（次标题）
         add_heading_with_number(doc, '1.4 测试仪器设备', level=2)
-        doc.add_paragraph(self.overview_data.get('测试仪器设备', '（待填写）'))
+        add_body_paragraph(doc, self.overview_data.get('测试仪器设备', '（待填写）'))
 
-        # ===== 2. 试验结果汇总 =====
+        # ===== 2. 试验结果汇总（大标题）=====
         add_heading_with_number(doc, '2 试验结果汇总', level=1)
 
         # 创建汇总表格
