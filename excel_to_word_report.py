@@ -1275,6 +1275,11 @@ class ExcelToWordReport:
                 cell.text = str(item.get(header, ''))
                 set_cell_font(cell, font_name=font_name, font_size=body_size)
         
+        # 调试输出
+        print("\n试验结果汇总数据:")
+        for idx, item in enumerate(self.summary_data):
+            print(f"  行{idx+1}: 试验分类={item.get('试验分类', '')}, 试验项目={item.get('试验项目', '')}")
+        
         # 合并相同试验分类的单元格并设置居中
         if self.summary_data:
             current_category = None
@@ -1287,6 +1292,7 @@ class ExcelToWordReport:
                     # 合并前一个分类的单元格
                     if current_category is not None and row_idx - 1 >= merge_start:
                         if row_idx - 1 > merge_start:  # 至少2行才合并
+                            print(f"  合并单元格: 第{merge_start}行 到 第{row_idx-1}行, 分类={current_category}")
                             merged_cell = summary_table.cell(merge_start, 1)
                             merged_cell.merge(summary_table.cell(row_idx - 1, 1))
                             # 设置合并后居中
@@ -1299,6 +1305,7 @@ class ExcelToWordReport:
             # 合并最后一个分类
             last_row = len(self.summary_data)
             if last_row > merge_start:
+                print(f"  合并最后单元格: 第{merge_start}行 到 第{last_row}行, 分类={current_category}")
                 merged_cell = summary_table.cell(merge_start, 1)
                 merged_cell.merge(summary_table.cell(last_row, 1))
                 # 设置合并后居中
