@@ -916,7 +916,7 @@ class ExcelToWordReport:
     """Excel转Word报告主类"""
 
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
-                 company_name="公司", watermark_text=None):
+                 company_name="公司", watermark_text=None, report_name=None):
         """
         初始化
 
@@ -927,6 +927,7 @@ class ExcelToWordReport:
             report_number: 报告编号（页眉用），默认自动生成
             company_name: 公司名称（页脚保密信息用）
             watermark_text: 水印文字，如 "xxxx to xxxx"
+            report_name: 报告名称（页眉用），默认使用文件名
         """
         self.excel_path = excel_path
         self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
@@ -934,6 +935,7 @@ class ExcelToWordReport:
         self.report_number = report_number or self._generate_report_number()
         self.company_name = company_name
         self.watermark_text = watermark_text
+        self.report_name = report_name  # 报告名称
 
         # 读取Excel
         self.df = None
@@ -1247,7 +1249,8 @@ class ExcelToWordReport:
         doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
 
         # ===== 添加页眉页脚 =====
-        report_name = os.path.splitext(os.path.basename(self.word_path))[0]
+        # 报告名称：优先使用配置的名称，否则使用文件名
+        report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
         add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
 
         # ===== 添加水印 =====
@@ -1425,7 +1428,8 @@ def list_sheets(excel_path):
 
 
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
-                   logo_path=None, report_number=None, company_name="公司", watermark_text=None):
+                   logo_path=None, report_number=None, company_name="公司", 
+                   watermark_text=None, report_name=None):
     """
     处理指定的sheet，生成Word报告
 
@@ -1442,6 +1446,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         report_number: 报告编号
         company_name: 公司名称
         watermark_text: 水印文字
+        report_name: 报告名称（页眉用）
 
     返回:
         生成的Word文件路径列表
@@ -1465,11 +1470,13 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
     # 合并模式
     if merge and len(sheets_to_process) > 1:
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
-                                     logo_path, report_number, company_name, watermark_text)
+                                     logo_path, report_number, company_name, 
+                                     watermark_text, report_name)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                      logo_path, report_number, company_name, watermark_text)
+                                      logo_path, report_number, company_name, 
+                                      watermark_text, report_name)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -1507,7 +1514,8 @@ def _resolve_sheets(all_sheets, sheets):
 
 
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                logo_path=None, report_number=None, company_name="公司", watermark_text=None):
+                                logo_path=None, report_number=None, company_name="公司", 
+                                watermark_text=None, report_name=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -1524,7 +1532,8 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
             word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
 
         try:
-            converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, company_name, watermark_text)
+            converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
+                                          company_name, watermark_text, report_name)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -1538,7 +1547,8 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
 
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
-                          logo_path=None, report_number=None, company_name="公司", watermark_text=None):
+                          logo_path=None, report_number=None, company_name="公司", 
+                          watermark_text=None, report_name=None):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -1552,9 +1562,9 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
     doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
     # 添加页眉页脚
-    report_name = f"{base_name}_合并报告"
+    actual_report_name = report_name or f"{base_name}_合并报告"
     actual_report_number = report_number or f"RPT{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    add_header_footer(doc, report_name, actual_report_number, logo_path, company_name)
+    add_header_footer(doc, actual_report_name, actual_report_number, logo_path, company_name)
     
     # 添加水印
     if watermark_text:
@@ -1662,6 +1672,7 @@ def main():
     logo_path = None  # Logo图片路径，如 r"D:\AI\logo.png"，None则不显示Logo
     report_number = None  # 报告编号，None则自动生成（如 RPT20260403100000）
     company_name = "公司"  # 公司名称，用于页脚保密信息
+    report_name = None  # 报告名称（页眉显示），None则使用文件名
 
     # ===== 水印配置 =====
     watermark_text = None  # 水印文字，如 "xxxx to xxxx"，None则不添加水印
@@ -1704,7 +1715,8 @@ def main():
                                   logo_path=logo_path, 
                                   report_number=report_number, 
                                   company_name=company_name,
-                                  watermark_text=watermark_text)
+                                  watermark_text=watermark_text,
+                                  report_name=report_name)
 
     # 输出结果
     print(f"\n{'='*50}")
