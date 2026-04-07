@@ -618,6 +618,44 @@ def add_heading_with_number(doc, text, level=1, font_config=None):
     return heading
 
 
+def close_word_document(file_path):
+    """
+    关闭占用指定文件的Word文档
+    
+    参数:
+        file_path: 文件路径
+        
+    返回:
+        True: 成功关闭或文件未被占用
+        False: 关闭失败
+    """
+    try:
+        import win32com.client
+        
+        # 获取已运行的Word实例
+        word = win32com.client.Dispatch("Word.Application")
+        
+        abs_path = os.path.abspath(file_path)
+        
+        # 遍历所有打开的文档
+        for doc in word.Documents:
+            try:
+                # 比较文件路径
+                doc_path = os.path.abspath(doc.FullName)
+                if doc_path.lower() == abs_path.lower():
+                    print(f"  检测到文件被占用，正在关闭: {os.path.basename(file_path)}")
+                    doc.Close(SaveChanges=False)  # 不保存更改
+                    print(f"  ✓ 已关闭占用文件")
+                    break
+            except:
+                continue
+                
+        return True
+    except Exception as e:
+        # Word未运行或其他错误，文件未被占用
+        return True
+
+
 def update_toc_in_word(word_path):
     """
     使用win32com打开Word文档并更新目录
@@ -1434,12 +1472,15 @@ class ExcelToWordReport:
                 create_testcase_table(doc, small_case['data'], font_config=self.font_config)
 
         # 保存文档
+        # 先检查并关闭占用该文件的Word文档
+        close_word_document(self.word_path)
+        
         try:
             doc.save(self.word_path)
             print(f"Word报告已生成: {self.word_path}")
         except PermissionError:
-            print(f"\n❌ 错误: 文件被占用，无法保存!")
-            print(f"   请关闭 Word 中打开的 '{os.path.basename(self.word_path)}' 后重试")
+            print(f"\n❌ 错误: 文件仍被占用，无法保存!")
+            print(f"   请手动关闭 Word 中打开的 '{os.path.basename(self.word_path)}' 后重试")
             return None
         except Exception as e:
             print(f"\n❌ 保存失败: {e}")
@@ -1792,13 +1833,16 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
             traceback.print_exc()
     
     # 保存文档
+    # 先检查并关闭占用该文件的Word文档
+    close_word_document(word_path)
+    
     try:
         doc.save(word_path)
         print(f"\n{'='*50}")
         print(f"合并报告已生成: {word_path}")
     except PermissionError:
-        print(f"\n❌ 错误: 文件被占用，无法保存!")
-        print(f"   请关闭 Word 中打开的 '{os.path.basename(word_path)}' 后重试")
+        print(f"\n❌ 错误: 文件仍被占用，无法保存!")
+        print(f"   请手动关闭 Word 中打开的 '{os.path.basename(word_path)}' 后重试")
         return []
     except Exception as e:
         print(f"\n❌ 保存失败: {e}")
