@@ -275,16 +275,15 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     for para in header.paragraphs:
         para.clear()
     
-    # 创建页眉表格（3列：Logo+报告名 | 空 | 报告编号）
-    header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
+    # 创建页眉表格（2列：Logo+报告名 | 报告编号）
+    header_table = header.add_table(rows=1, cols=2, width=Inches(7.5))
     header_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # 设置列宽
-    header_table.columns[0].width = Inches(4.0)  # Logo + 报告名
-    header_table.columns[1].width = Inches(1.5)  # 空白
-    header_table.columns[2].width = Inches(2.0)  # 报告编号
+    # 设置列宽（各占一半）
+    header_table.columns[0].width = Inches(3.75)  # Logo + 报告名
+    header_table.columns[1].width = Inches(3.75)  # 报告编号
     
-    # 第1列：Logo + 报告名称
+    # 第1列：Logo + 报告名称（左对齐）
     cell_left = header_table.cell(0, 0)
     para_left = cell_left.paragraphs[0]
     para_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -307,12 +306,8 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     run_name.font.size = Pt(10)
     run_name._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     
-    # 第2列：空白
-    cell_middle = header_table.cell(0, 1)
-    cell_middle.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # 第3列：报告编号
-    cell_right = header_table.cell(0, 2)
+    # 第2列：报告编号（右对齐）
+    cell_right = header_table.cell(0, 1)
     para_right = cell_right.paragraphs[0]
     para_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     para_right.paragraph_format.space_before = Pt(0)
