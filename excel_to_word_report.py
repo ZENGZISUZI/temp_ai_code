@@ -37,6 +37,7 @@ OVERVIEW_FIELD_MAPPING = {
 TESTCASE_FIELD_MAPPING = {
     '开始日期': ['开始日期', '开始时间', '起始日期', '开始'],
     '结束日期': ['结束日期', '结束时间', '终止日期', '结束'],
+    '计划完成时间': ['计划完成时间', '计划完成日期', '计划完成', '预计完成时间', '预计完成日期'],
     '样机数量': ['样机数量', '数量', '样品数量', '台数'],
     '样机编号': ['样机编号', '编号', '样品编号', '机号'],
     '试验机构': ['试验机构', '检测机构', '测试机构', '机构'],
@@ -899,8 +900,8 @@ def create_testcase_table(doc, data_dict, font_config=None):
     # 后续行字段（2列）
     remaining_fields = ['试验机构', '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
     
-    # 计算总行数
-    total_rows = 2 + len(remaining_fields)
+    # 计算总行数（增加计划完成时间行）
+    total_rows = 3 + len(remaining_fields)
     
     # 创建表格（最多4列）
     table = doc.add_table(rows=total_rows, cols=4)
@@ -927,9 +928,17 @@ def create_testcase_table(doc, data_dict, font_config=None):
     table.cell(1, 3).text = str(data_dict.get('样机编号', ''))
     set_cell_font(table.cell(1, 3), font_name=font_name, font_size=font_size)
     
-    # 第三行起：字段名占1列，值合并3列
+    # 第三行：计划完成时间 | 值（合并3列）
+    table.cell(2, 0).text = '计划完成时间'
+    set_cell_font(table.cell(2, 0), font_name=font_name, font_size=font_size, bold=True)
+    # 合并第2-4列
+    table.cell(2, 1).merge(table.cell(2, 2)).merge(table.cell(2, 3))
+    table.cell(2, 1).text = format_date_only(data_dict.get('计划完成时间', ''))
+    set_cell_font(table.cell(2, 1), font_name=font_name, font_size=font_size)
+    
+    # 第四行起：字段名占1列，值合并3列
     for i, field in enumerate(remaining_fields):
-        row_idx = i + 2
+        row_idx = i + 3
         
         # 合并第2-4列（值占3列）
         table.cell(row_idx, 1).merge(table.cell(row_idx, 2)).merge(table.cell(row_idx, 3))
