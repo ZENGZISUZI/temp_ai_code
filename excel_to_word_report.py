@@ -628,23 +628,27 @@ def update_toc_in_word(word_path):
     try:
         import win32com.client
         
-        # 启动Word应用
-        word = win32com.client.Dispatch("Word.Application")
+        # 使用DispatchEx创建独立的Word实例，避免影响用户已打开的Word
+        word = win32com.client.DispatchEx("Word.Application")
         word.Visible = False  # 后台运行
         
-        # 打开文档
-        doc = word.Documents.Open(os.path.abspath(word_path))
-        
-        # 更新所有域（包括目录）
-        doc.Fields.Update()
-        
-        # 保存并关闭
-        doc.Save()
-        doc.Close()
-        word.Quit()
-        
-        print("✓ 目录已自动更新")
-        return True
+        try:
+            # 打开文档
+            doc = word.Documents.Open(os.path.abspath(word_path))
+            
+            # 更新所有域（包括目录）
+            doc.Fields.Update()
+            
+            # 保存并关闭文档
+            doc.Save()
+            doc.Close()
+            
+            print("✓ 目录已自动更新")
+            return True
+        finally:
+            # 退出独立的Word实例
+            word.Quit()
+            
     except ImportError:
         print("⚠️ 未安装win32com，无法自动更新目录")
         print("  提示: pip install pywin32")
