@@ -835,6 +835,46 @@ def add_body_paragraph(doc, text, font_config=None):
     return para
 
 
+def format_date_only(value):
+    """
+    格式化日期，只保留日期部分（去掉时分秒）
+    
+    参数:
+        value: 日期值（可能是字符串、datetime对象等）
+        
+    返回:
+        只包含日期的字符串
+    """
+    if not value:
+        return ''
+    
+    value_str = str(value).strip()
+    
+    # 尝试解析常见日期格式
+    import re
+    
+    # 匹配 YYYY-MM-DD 或 YYYY/MM/DD 格式
+    date_match = re.match(r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})', value_str)
+    if date_match:
+        return date_match.group(1).replace('/', '-')
+    
+    # 匹配 YYYYMMDD 格式
+    date_match = re.match(r'(\d{4})(\d{2})(\d{2})', value_str)
+    if date_match:
+        return f"{date_match.group(1)}-{date_match.group(2)}-{date_match.group(3)}"
+    
+    # 如果是 datetime 对象
+    try:
+        from datetime import datetime
+        if isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d')
+    except:
+        pass
+    
+    # 返回原始值
+    return value_str
+
+
 def create_testcase_table(doc, data_dict, font_config=None):
     """
     创建测试用例表格
@@ -870,11 +910,11 @@ def create_testcase_table(doc, data_dict, font_config=None):
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
     set_cell_font(table.cell(0, 0), font_name=font_name, font_size=font_size, bold=True)
-    table.cell(0, 1).text = str(data_dict.get('开始日期', ''))
+    table.cell(0, 1).text = format_date_only(data_dict.get('开始日期', ''))
     set_cell_font(table.cell(0, 1), font_name=font_name, font_size=font_size)
     table.cell(0, 2).text = '结束日期'
     set_cell_font(table.cell(0, 2), font_name=font_name, font_size=font_size, bold=True)
-    table.cell(0, 3).text = str(data_dict.get('结束日期', ''))
+    table.cell(0, 3).text = format_date_only(data_dict.get('结束日期', ''))
     set_cell_font(table.cell(0, 3), font_name=font_name, font_size=font_size)
     
     # 第二行：样机数量 | 值 | 样机编号 | 值
