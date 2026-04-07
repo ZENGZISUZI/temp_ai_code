@@ -382,6 +382,12 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     
     # 设置表格只有顶部边框（横线紧贴文字）
     set_table_border_with_top_line(footer_table)
+    
+    # 删除表格后面可能自动添加的空段落
+    for para in footer.paragraphs:
+        if not para.text.strip():
+            p = para._element
+            p.getparent().remove(p)
 
 
 def set_table_border_with_bottom_line(table):
