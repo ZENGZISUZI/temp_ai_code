@@ -303,9 +303,9 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     
     # 添加报告名称
     run_name = para_left.add_run(report_name)
-    run_name.font.name = '宋体'
-    run_name.font.size = Pt(10)
-    run_name._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_name.font.name = '微软雅黑'
+    run_name.font.size = Pt(9)
+    run_name._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     # 第2列：报告编号（右对齐）
     cell_right = header_table.cell(0, 1)
@@ -315,9 +315,9 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     para_right.paragraph_format.space_after = Pt(0)
     para_right.paragraph_format.line_spacing = 1.0
     run_number = para_right.add_run(f"报告编号:{report_number}")
-    run_number.font.name = '宋体'
-    run_number.font.size = Pt(10)
-    run_number._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_number.font.name = '微软雅黑'
+    run_number.font.size = Pt(9)
+    run_number._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     # 设置表格只有底部边框（横线紧贴文字）
     set_table_border_with_bottom_line(header_table)
@@ -347,10 +347,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     para_secret.paragraph_format.space_after = Pt(0)
     para_secret.paragraph_format.line_spacing = 1.0
     run_secret = para_secret.add_run(f"{company_name}保密信息，未经授权禁止扩散！")
-    run_secret.font.name = '宋体'
+    run_secret.font.name = '微软雅黑'
     run_secret.font.size = Pt(9)
     run_secret.font.bold = True
-    run_secret._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_secret._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     # 第2列：页码（右对齐）
     cell_page = footer_table.cell(0, 1)
@@ -362,23 +362,23 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     
     # 添加页码字段
     run_page = para_page.add_run("第 ")
-    run_page.font.name = '宋体'
+    run_page.font.name = '微软雅黑'
     run_page.font.size = Pt(9)
-    run_page._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_page._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     add_page_number_field(para_page)
     
     run_page2 = para_page.add_run(" 页，共 ")
-    run_page2.font.name = '宋体'
+    run_page2.font.name = '微软雅黑'
     run_page2.font.size = Pt(9)
-    run_page2._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_page2._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     add_total_pages_field(para_page)
     
     run_page3 = para_page.add_run(" 页")
-    run_page3.font.name = '宋体'
+    run_page3.font.name = '微软雅黑'
     run_page3.font.size = Pt(9)
-    run_page3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run_page3._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
     # 设置表格只有顶部边框（横线紧贴文字）
     set_table_border_with_top_line(footer_table)
