@@ -335,9 +335,9 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     footer_table = footer.add_table(rows=1, cols=2, width=Inches(7.5))
     footer_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # 设置列宽
-    footer_table.columns[0].width = Inches(5.5)  # 保密信息
-    footer_table.columns[1].width = Inches(2.0)  # 页码
+    # 设置列宽（保密信息列宽，页码列窄）
+    footer_table.columns[0].width = Inches(5.0)  # 保密信息
+    footer_table.columns[1].width = Inches(2.5)  # 页码
     
     # 第1列：保密信息（居中）
     cell_secret = footer_table.cell(0, 0)
@@ -366,14 +366,14 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     run_page.font.size = Pt(9)
     run_page._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
-    add_page_number_field(para_page)
+    add_page_number_field(para_page, '微软雅黑', 9)
     
     run_page2 = para_page.add_run(" 页，共 ")
     run_page2.font.name = '微软雅黑'
     run_page2.font.size = Pt(9)
     run_page2._element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     
-    add_total_pages_field(para_page)
+    add_total_pages_field(para_page, '微软雅黑', 9)
     
     run_page3 = para_page.add_run(" 页")
     run_page3.font.name = '微软雅黑'
@@ -475,7 +475,7 @@ def set_table_border(table, show_border=True):
         tbl.insert(0, tblPr)
 
 
-def add_page_number_field(paragraph):
+def add_page_number_field(paragraph, font_name='微软雅黑', font_size=9):
     """添加当前页码字段"""
     run = paragraph.add_run()
     fldChar1 = OxmlElement('w:fldChar')
@@ -490,9 +490,14 @@ def add_page_number_field(paragraph):
     run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
+    
+    # 设置字体
+    run.font.name = font_name
+    run.font.size = Pt(font_size)
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
 
 
-def add_total_pages_field(paragraph):
+def add_total_pages_field(paragraph, font_name='微软雅黑', font_size=9):
     """添加总页数字段"""
     run = paragraph.add_run()
     fldChar1 = OxmlElement('w:fldChar')
@@ -507,6 +512,11 @@ def add_total_pages_field(paragraph):
     run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
+    
+    # 设置字体
+    run.font.name = font_name
+    run.font.size = Pt(font_size)
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
 
 
 def add_watermark_to_docx(doc, watermark_text):
