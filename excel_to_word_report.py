@@ -1434,8 +1434,16 @@ class ExcelToWordReport:
                 create_testcase_table(doc, small_case['data'], font_config=self.font_config)
 
         # 保存文档
-        doc.save(self.word_path)
-        print(f"Word报告已生成: {self.word_path}")
+        try:
+            doc.save(self.word_path)
+            print(f"Word报告已生成: {self.word_path}")
+        except PermissionError:
+            print(f"\n❌ 错误: 文件被占用，无法保存!")
+            print(f"   请关闭 Word 中打开的 '{os.path.basename(self.word_path)}' 后重试")
+            return None
+        except Exception as e:
+            print(f"\n❌ 保存失败: {e}")
+            return None
         
         # 自动更新目录页码
         update_toc_in_word(self.word_path)
@@ -1784,9 +1792,17 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
             traceback.print_exc()
     
     # 保存文档
-    doc.save(word_path)
-    print(f"\n{'='*50}")
-    print(f"合并报告已生成: {word_path}")
+    try:
+        doc.save(word_path)
+        print(f"\n{'='*50}")
+        print(f"合并报告已生成: {word_path}")
+    except PermissionError:
+        print(f"\n❌ 错误: 文件被占用，无法保存!")
+        print(f"   请关闭 Word 中打开的 '{os.path.basename(word_path)}' 后重试")
+        return []
+    except Exception as e:
+        print(f"\n❌ 保存失败: {e}")
+        return []
     
     return [word_path]
 
