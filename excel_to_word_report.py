@@ -1301,6 +1301,7 @@ class ExcelToWordReport:
             for idx, col_name in enumerate(self.df.iloc[0]):
                 if pd.notna(col_name):
                     self.col_name_to_idx[str(col_name)] = idx
+            print(f"  列名映射: {list(self.col_name_to_idx.keys())[:10]}...")
 
         # 智能匹配每个字段
         for field, keywords in TESTCASE_FIELD_MAPPING.items():
