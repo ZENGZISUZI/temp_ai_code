@@ -876,6 +876,30 @@ def format_date_only(value):
     return value_str
 
 
+def format_quantity(value):
+    """
+    格式化数量，如果只有数字则添加pcs单位
+    
+    参数:
+        value: 数量值
+        
+    返回:
+        格式化后的数量字符串
+    """
+    if not value:
+        return ''
+    
+    value_str = str(value).strip()
+    
+    # 如果已经是纯数字，添加pcs
+    import re
+    if re.match(r'^\d+(\.\d+)?$', value_str):
+        return f"{value_str} pcs"
+    
+    # 如果已经包含单位（如 pcs、台、个等），直接返回
+    return value_str
+
+
 def create_testcase_table(doc, data_dict, font_config=None):
     """
     创建测试用例表格
@@ -921,7 +945,7 @@ def create_testcase_table(doc, data_dict, font_config=None):
     # 第二行：样机数量 | 值 | 样机编号 | 值
     table.cell(1, 0).text = '样机数量'
     set_cell_font(table.cell(1, 0), font_name=font_name, font_size=font_size, bold=True)
-    table.cell(1, 1).text = str(data_dict.get('样机数量', ''))
+    table.cell(1, 1).text = format_quantity(data_dict.get('样机数量', ''))
     set_cell_font(table.cell(1, 1), font_name=font_name, font_size=font_size)
     table.cell(1, 2).text = '样机编号'
     set_cell_font(table.cell(1, 2), font_name=font_name, font_size=font_size, bold=True)
