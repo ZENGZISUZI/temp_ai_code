@@ -1321,6 +1321,13 @@ class ExcelToWordReport:
         summary_table = doc.add_table(rows=len(self.summary_data) + 1, cols=4)
         summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
         set_table_border(summary_table)
+        
+        # 设置列宽（2.67cm、6.4cm、5.75cm、2.67cm）
+        from docx.shared import Cm
+        summary_table.columns[0].width = Cm(2.67)   # 序号
+        summary_table.columns[1].width = Cm(6.4)    # 试验分类
+        summary_table.columns[2].width = Cm(5.75)   # 试验项目
+        summary_table.columns[3].width = Cm(2.67)   # 测试结论
 
         # 表头
         headers = ['序号', '试验分类', '试验项目', '测试结论']
@@ -1381,12 +1388,20 @@ class ExcelToWordReport:
                     merged_cell = first_cell.merge(summary_table.cell(end, 1))
                     
                     # 重新设置值（合并后可能丢失）
-                    merged_cell.text = value
-                    
-                    # 设置合并后居中
-                    merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                    # 清空合并后的段落，重新添加一个居中的段落
                     for para in merged_cell.paragraphs:
-                        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        para.clear()
+                    
+                    # 添加新的段落并设置居中
+                    new_para = merged_cell.paragraphs[0]
+                    new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = new_para.add_run(value)
+                    run.font.name = font_name
+                    run.font.size = Pt(body_size)
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+                    
+                    # 设置垂直居中
+                    merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
         doc.add_paragraph()
 
@@ -1685,6 +1700,13 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                 summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
                 set_table_border(summary_table)
                 
+                # 设置列宽（2.67cm、6.4cm、5.75cm、2.67cm）
+                from docx.shared import Cm
+                summary_table.columns[0].width = Cm(2.67)   # 序号
+                summary_table.columns[1].width = Cm(6.4)    # 试验分类
+                summary_table.columns[2].width = Cm(5.75)   # 试验项目
+                summary_table.columns[3].width = Cm(2.67)   # 测试结论
+                
                 headers = ['序号', '试验分类', '试验项目', '测试结论']
                 for i, header in enumerate(headers):
                     cell = summary_table.cell(0, i)
@@ -1697,8 +1719,9 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                         cell.text = str(item.get(header, ''))
                         set_cell_font(cell)
                 
-                # 合并相同试验分类的单元格
+                # 合并相同试验分类的单元格并居中
                 if len(converter.summary_data) > 1:
+                    merge_ranges = []
                     current_category = None
                     merge_start = 1
                     
@@ -1706,13 +1729,37 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                         category = item.get('试验分类', '')
                         
                         if category != current_category:
-                            if current_category is not None and row_idx > merge_start + 1:
-                                summary_table.cell(merge_start, 1).merge(summary_table.cell(row_idx - 1, 1))
+                            if current_category is not None:
+                                merge_ranges.append((merge_start, row_idx - 1))
                             current_category = category
                             merge_start = row_idx
                     
-                    if merge_start < len(converter.summary_data):
-                        summary_table.cell(merge_start, 1).merge(summary_table.cell(len(converter.summary_data), 1))
+                    if current_category is not None:
+                        merge_ranges.append((merge_start, len(converter.summary_data)))
+                    
+                    for start, end in merge_ranges:
+                        if end > start:
+                            first_cell = summary_table.cell(start, 1)
+                            value = first_cell.text
+                            
+                            for row_idx in range(start + 1, end + 1):
+                                cell = summary_table.cell(row_idx, 1)
+                                for para in cell.paragraphs:
+                                    para.clear()
+                            
+                            merged_cell = first_cell.merge(summary_table.cell(end, 1))
+                            
+                            for para in merged_cell.paragraphs:
+                                para.clear()
+                            
+                            new_para = merged_cell.paragraphs[0]
+                            new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            run = new_para.add_run(value)
+                            run.font.name = font_name
+                            run.font.size = Pt(body_size)
+                            run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+                            
+                            merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             
             # 添加测试数据
             if converter.big_cases:
