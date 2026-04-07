@@ -271,9 +271,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     header = section.header
     header.is_linked_to_previous = False
     
-    # 清空默认段落
+    # 删除默认段落（避免页眉上方出现回车符号）
     for para in header.paragraphs:
-        para.clear()
+        p = para._element
+        p.getparent().remove(p)
     
     # 创建页眉表格（2列：Logo+报告名 | 报告编号）
     header_table = header.add_table(rows=1, cols=2, width=Inches(7.5))
@@ -325,9 +326,10 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
     footer = section.footer
     footer.is_linked_to_previous = False
     
-    # 清空默认段落
+    # 删除默认段落（避免页脚上方出现回车符号）
     for para in footer.paragraphs:
-        para.clear()
+        p = para._element
+        p.getparent().remove(p)
     
     # 创建页脚表格（2列：保密信息 | 页码）
     footer_table = footer.add_table(rows=1, cols=2, width=Inches(7.5))
