@@ -1353,8 +1353,23 @@ class ExcelToWordReport:
             for start, end in merge_ranges:
                 if end > start:  # 至少2行才合并
                     print(f"  合并第{start}行到第{end}行")
-                    merged_cell = summary_table.cell(start, 1)
-                    merged_cell.merge(summary_table.cell(end, 1))
+                    
+                    # 获取第一个单元格的值
+                    first_cell = summary_table.cell(start, 1)
+                    value = first_cell.text
+                    
+                    # 清空其他单元格的内容
+                    for row_idx in range(start + 1, end + 1):
+                        cell = summary_table.cell(row_idx, 1)
+                        for para in cell.paragraphs:
+                            para.clear()
+                    
+                    # 执行合并
+                    merged_cell = first_cell.merge(summary_table.cell(end, 1))
+                    
+                    # 重新设置值（合并后可能丢失）
+                    merged_cell.text = value
+                    
                     # 设置合并后居中
                     merged_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                     for para in merged_cell.paragraphs:
