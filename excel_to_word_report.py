@@ -1475,6 +1475,14 @@ class ExcelToWordReport:
         # 先检查并关闭占用该文件的Word文档
         close_word_document(self.word_path)
         
+        # 如果文件已存在，删除旧文件
+        if os.path.exists(self.word_path):
+            try:
+                os.remove(self.word_path)
+                print(f"  已删除旧文件: {os.path.basename(self.word_path)}")
+            except Exception as e:
+                print(f"  警告: 无法删除旧文件 - {e}")
+        
         try:
             doc.save(self.word_path)
             print(f"Word报告已生成: {self.word_path}")
@@ -1835,6 +1843,14 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
     # 保存文档
     # 先检查并关闭占用该文件的Word文档
     close_word_document(word_path)
+    
+    # 如果文件已存在，删除旧文件
+    if os.path.exists(word_path):
+        try:
+            os.remove(word_path)
+            print(f"  已删除旧文件: {os.path.basename(word_path)}")
+        except Exception as e:
+            print(f"  警告: 无法删除旧文件 - {e}")
     
     try:
         doc.save(word_path)
