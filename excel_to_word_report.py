@@ -1224,12 +1224,22 @@ class ExcelToWordReport:
                 if merged_range.min_col != merged_range.max_col and merged_range.min_row > header_merge_end:
                     row_idx = merged_range.min_row
                     cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
+                    print(f"  检测到列合并: 行{row_idx}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
                     if cell_value and str(cell_value).strip():
                         merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
-                        print(f"找到大用例(列合并): 第{row_idx}行, 列{merged_range.min_col}-{merged_range.max_col}, 名字: {cell_value}")
+                        print(f"    -> 添加为大用例")
+                    else:
+                        print(f"    -> 跳过（值为空）")
 
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
+        
+        # 打印找到的所有大用例
+        print(f"\n=== 找到的大用例列表 ===")
+        for i, (start_row, end_row, name) in enumerate(merged_ranges):
+            print(f"  [{i+1}] 行{start_row}-{end_row}: {name}")
+        print(f"=== 共 {len(merged_ranges)} 个大用例 ===\n")
+        
         return merged_ranges, test_col, header_row
 
     def parse_overview_data(self, big_case_start_row):
