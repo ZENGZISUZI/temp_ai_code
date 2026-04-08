@@ -975,21 +975,21 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
-    set_cell_font(table.cell(0, 0), font_name=font_name, font_size=font_size, bold=True)
+    set_cell_font(table.cell(0, 0), font_name=font_name, font_size=font_size, bold=True, align_center=False)
     table.cell(0, 1).text = format_date_only(data_dict.get('开始日期', ''))
     set_cell_font(table.cell(0, 1), font_name=font_name, font_size=font_size, align_center=False)
     table.cell(0, 2).text = '结束日期'
-    set_cell_font(table.cell(0, 2), font_name=font_name, font_size=font_size, bold=True)
+    set_cell_font(table.cell(0, 2), font_name=font_name, font_size=font_size, bold=True, align_center=False)
     table.cell(0, 3).text = format_date_only(data_dict.get('结束日期', ''))
     set_cell_font(table.cell(0, 3), font_name=font_name, font_size=font_size, align_center=False)
     
     # 第二行：样机数量 | 值 | 样机编号 | 值
     table.cell(1, 0).text = '样机数量'
-    set_cell_font(table.cell(1, 0), font_name=font_name, font_size=font_size, bold=True)
+    set_cell_font(table.cell(1, 0), font_name=font_name, font_size=font_size, bold=True, align_center=False)
     table.cell(1, 1).text = format_quantity(data_dict.get('样机数量', ''))
     set_cell_font(table.cell(1, 1), font_name=font_name, font_size=font_size, align_center=False)
     table.cell(1, 2).text = '样机编号'
-    set_cell_font(table.cell(1, 2), font_name=font_name, font_size=font_size, bold=True)
+    set_cell_font(table.cell(1, 2), font_name=font_name, font_size=font_size, bold=True, align_center=False)
     table.cell(1, 3).text = format_sample_number(data_dict.get('样机编号', ''))
     set_cell_font(table.cell(1, 3), font_name=font_name, font_size=font_size, align_center=False)
     
@@ -1002,7 +1002,7 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
         
         # 填充内容
         table.cell(row_idx, 0).text = field
-        set_cell_font(table.cell(row_idx, 0), font_name=font_name, font_size=font_size, bold=True)
+        set_cell_font(table.cell(row_idx, 0), font_name=font_name, font_size=font_size, bold=True, align_center=False)
         value = data_dict.get(field, '')
         table.cell(row_idx, 1).text = str(value) if value else ''
         set_cell_font(table.cell(row_idx, 1), font_name=font_name, font_size=font_size, align_center=False)
