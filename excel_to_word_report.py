@@ -1190,6 +1190,8 @@ class ExcelToWordReport:
                 print(f"标题行合并范围: 第{header_row}-{header_merge_end}行")
                 break
         
+        print(f"header_merge_end = {header_merge_end} (大用例必须在此行之后)")
+        
         # 检测大用例：查找标题行下方的行合并单元格
         # 大用例名字可能在试验项目列，也可能在试验项目列的前一列
         # 先检测试验项目列，再检测前一列
