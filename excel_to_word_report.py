@@ -1154,6 +1154,13 @@ class ExcelToWordReport:
             ws = wb.active
         
         print(f"正在读取sheet: {ws.title}")
+        
+        # 调试：打印所有合并单元格
+        print(f"\n=== 调试信息：所有合并单元格 ===")
+        for merged_range in ws.merged_cells.ranges:
+            cell_value = ws.cell(row=merged_range.min_row, column=merged_range.min_col).value
+            print(f"  合并范围: 行{merged_range.min_row}-{merged_range.max_row}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
+        print(f"=== 合并单元格总数: {len(ws.merged_cells.ranges)} ===\n")
 
         # 找到试验项目列（在所有行中搜索）
         test_col = None
