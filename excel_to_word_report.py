@@ -1232,7 +1232,7 @@ class ExcelToWordReport:
 
     def build_column_mapping(self, header_row):
         """
-        建立列名到索引的映射
+        建立列名到索引的映射（支持多行合并标题）
 
         参数:
             header_row: 标题行号（openpyxl格式，从1开始）
@@ -1249,15 +1249,34 @@ class ExcelToWordReport:
                     if pd.notna(col_name):
                         self.col_name_to_idx[str(col_name).strip()] = col_idx
         else:
-            # xlsx格式使用openpyxl读取标题行
+            # xlsx格式使用openpyxl读取标题行（支持多行合并标题）
             from openpyxl import load_workbook
             wb = load_workbook(self.excel_path)
             ws = wb.active
             
+            # 先检测标题区域的合并单元格，找到标题行的结束行
+            header_end_row = header_row
+            for merged_range in ws.merged_cells.ranges:
+                # 如果合并单元格跨越多行且包含标题行
+                if (merged_range.min_row <= header_row <= merged_range.max_row and 
+                    merged_range.min_row != merged_range.max_row):
+                    header_end_row = max(header_end_row, merged_range.max_row)
+            
+            # 读取标题行（优先读取最后一行，因为子列名通常在下面）
+            # 如果有多行标题，优先使用下面的行（子列名）
             for col_idx in range(1, ws.max_column + 1):
-                cell_value = ws.cell(row=header_row, column=col_idx).value
+                # 从下往上找，优先取子列名
+                cell_value = None
+                for row in range(header_end_row, header_row - 1, -1):
+                    val = ws.cell(row=row, column=col_idx).value
+                    if val and str(val).strip():
+                        cell_value = str(val).strip()
+                        # 如果不是大类名称（如"样件"），就用这个
+                        # 大类名称通常是合并单元格的父标题
+                        break
+                
                 if cell_value:
-                    self.col_name_to_idx[str(cell_value).strip()] = col_idx - 1  # 转为pandas索引（从0开始）
+                    self.col_name_to_idx[cell_value] = col_idx - 1  # 转为pandas索引（从0开始）
         
         print(f"列名映射: {list(self.col_name_to_idx.keys())[:15]}...")
 
