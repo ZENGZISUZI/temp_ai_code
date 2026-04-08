@@ -2108,7 +2108,8 @@ def load_config(config_path):
                     else:
                         config[key] = value
                 else:
-                    config[key] = value
+                    # 支持 \n 换行符
+                    config[key] = value.replace('\\n', '\n')
     
     print(f"已从配置文件加载: {config_path}")
     return config
