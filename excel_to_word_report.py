@@ -1021,7 +1021,8 @@ class ExcelToWordReport:
     }
 
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
-                 company_name="公司", watermark_text=None, report_name=None, font_config=None):
+                 company_name="公司", watermark_text=None, report_name=None, font_config=None,
+                 testcase_config=None):
         """
         初始化
 
