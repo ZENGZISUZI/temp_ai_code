@@ -899,6 +899,41 @@ def format_quantity(value):
     return value_str
 
 
+def format_sample_number(value):
+    """
+    格式化样机编号，将 1/2/3 转换为 1#、2#、3#
+    
+    参数:
+        value: 样机编号值
+        
+    返回:
+        格式化后的样机编号字符串
+    """
+    if not value:
+        return ''
+    
+    value_str = str(value).strip()
+    
+    # 处理 1/2/3 格式（用斜杠分隔）
+    if '/' in value_str:
+        parts = value_str.split('/')
+        formatted_parts = [f"{p.strip()}#" for p in parts if p.strip()]
+        return '、'.join(formatted_parts)
+    
+    # 处理 1,2,3 格式（用逗号分隔）
+    if ',' in value_str:
+        parts = value_str.split(',')
+        formatted_parts = [f"{p.strip()}#" for p in parts if p.strip()]
+        return '、'.join(formatted_parts)
+    
+    # 处理单个数字
+    if re.match(r'^\d+$', value_str):
+        return f"{value_str}#"
+    
+    # 其他格式直接返回
+    return value_str
+
+
 def create_testcase_table(doc, data_dict, font_config=None):
     """
     创建测试用例表格
@@ -948,7 +983,7 @@ def create_testcase_table(doc, data_dict, font_config=None):
     set_cell_font(table.cell(1, 1), font_name=font_name, font_size=font_size)
     table.cell(1, 2).text = '样机编号'
     set_cell_font(table.cell(1, 2), font_name=font_name, font_size=font_size, bold=True)
-    table.cell(1, 3).text = str(data_dict.get('样机编号', ''))
+    table.cell(1, 3).text = format_sample_number(data_dict.get('样机编号', ''))
     set_cell_font(table.cell(1, 3), font_name=font_name, font_size=font_size)
     
     # 第三行起：字段名占1列，值合并3列
