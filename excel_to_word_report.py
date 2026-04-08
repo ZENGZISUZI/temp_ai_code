@@ -934,7 +934,7 @@ def format_sample_number(value):
     return value_str
 
 
-def create_testcase_table(doc, data_dict, font_config=None):
+def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     """
     创建测试用例表格
     
@@ -942,6 +942,7 @@ def create_testcase_table(doc, data_dict, font_config=None):
         doc: Word文档对象
         data_dict: 数据字典 {字段名: 值}
         font_config: 字体配置字典
+        col_widths: 列宽列表（单位：厘米），如 [2.5, 4, 2.5, 4]
     """
     # 默认配置
     default_config = {
@@ -965,6 +966,12 @@ def create_testcase_table(doc, data_dict, font_config=None):
     table = doc.add_table(rows=total_rows, cols=4)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_border(table)
+    
+    # 设置列宽
+    if col_widths and len(col_widths) == 4:
+        from docx.shared import Cm
+        for i, width in enumerate(col_widths):
+            table.columns[i].width = Cm(width)
     
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
@@ -1022,7 +1029,7 @@ class ExcelToWordReport:
 
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
                  company_name="公司", watermark_text=None, report_name=None, font_config=None,
-                 testcase_config=None):
+                 testcase_config=None, table_widths=None):
         """
         初始化
 
@@ -1036,6 +1043,7 @@ class ExcelToWordReport:
             report_name: 报告名称（页眉用），默认使用文件名
             font_config: 字体配置字典，可覆盖默认配置
             testcase_config: 小用例属性配置（优先级高于Excel），字典格式
+            table_widths: 表格列宽配置字典，如 {'testcase': [2.5,4,2.5,4], 'summary': [2,5,6,2] }
         """
         self.excel_path = excel_path
         self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
@@ -1052,6 +1060,9 @@ class ExcelToWordReport:
         
         # 小用例属性配置（优先级高于Excel）
         self.testcase_config = testcase_config or {}
+        
+        # 表格列宽配置
+        self.table_widths = table_widths or {}
 
         # 读取Excel
         self.df = None
@@ -1509,12 +1520,11 @@ class ExcelToWordReport:
         summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
         set_table_border(summary_table)
         
-        # 设置列宽（2.67cm、6.4cm、5.75cm、2.67cm）
+        # 设置列宽
         from docx.shared import Cm
-        summary_table.columns[0].width = Cm(2.67)   # 序号
-        summary_table.columns[1].width = Cm(6.4)    # 试验分类
-        summary_table.columns[2].width = Cm(5.75)   # 试验项目
-        summary_table.columns[3].width = Cm(2.67)   # 测试结论
+        summary_widths = self.table_widths.get('summary', [2.67, 6.4, 5.75, 2.67])
+        for i, width in enumerate(summary_widths):
+            summary_table.columns[i].width = Cm(width)
 
         # 表头
         headers = ['序号', '试验分类', '试验项目', '测试结论']
@@ -1614,7 +1624,8 @@ class ExcelToWordReport:
                 clean_small_name = clean_case_number(small_case["name"])
                 h3_small = add_heading_with_number(doc, f'3.{big_idx}.{small_idx} {clean_small_name}', level=3, font_config=self.font_config)
                 add_bookmark(h3_small, f'toc_3_{big_idx}_{small_idx}')
-                create_testcase_table(doc, small_case['data'], font_config=self.font_config)
+                create_testcase_table(doc, small_case['data'], font_config=self.font_config, 
+                                      col_widths=self.table_widths.get('testcase'))
 
         # 保存文档
         # 先检查并关闭占用该文件的Word文档
@@ -1722,7 +1733,7 @@ def list_sheets(excel_path):
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
                    logo_path=None, report_number=None, company_name="公司", 
                    watermark_text=None, report_name=None, font_config=None,
-                   testcase_config=None):
+                   testcase_config=None, table_widths=None):
     """
     处理指定的sheet，生成Word报告
 
@@ -1742,6 +1753,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         report_name: 报告名称（页眉用）
         font_config: 字体配置字典
         testcase_config: 小用例属性配置（优先级高于Excel）
+        table_widths: 表格列宽配置字典
 
     返回:
         生成的Word文件路径列表
@@ -1767,13 +1779,13 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
                                      logo_path, report_number, company_name, 
                                      watermark_text, report_name, font_config,
-                                     testcase_config)
+                                     testcase_config, table_widths)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                       logo_path, report_number, company_name, 
                                       watermark_text, report_name, font_config,
-                                      testcase_config)
+                                      testcase_config, table_widths)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -1813,7 +1825,7 @@ def _resolve_sheets(all_sheets, sheets):
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                 logo_path=None, report_number=None, company_name="公司", 
                                 watermark_text=None, report_name=None, font_config=None,
-                                testcase_config=None):
+                                testcase_config=None, table_widths=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -1832,7 +1844,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
         try:
             converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
                                           company_name, watermark_text, report_name, font_config,
-                                          testcase_config)
+                                          testcase_config, table_widths)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -1848,7 +1860,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                           logo_path=None, report_number=None, company_name="公司", 
                           watermark_text=None, report_name=None, font_config=None,
-                          testcase_config=None):
+                          testcase_config=None, table_widths=None):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -1913,12 +1925,11 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                 summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
                 set_table_border(summary_table)
                 
-                # 设置列宽（2.67cm、6.4cm、5.75cm、2.67cm）
+                # 设置列宽
                 from docx.shared import Cm
-                summary_table.columns[0].width = Cm(2.67)   # 序号
-                summary_table.columns[1].width = Cm(6.4)    # 试验分类
-                summary_table.columns[2].width = Cm(5.75)   # 试验项目
-                summary_table.columns[3].width = Cm(2.67)   # 测试结论
+                summary_widths = table_widths.get('summary', [2.67, 6.4, 5.75, 2.67]) if table_widths else [2.67, 6.4, 5.75, 2.67]
+                for i, width in enumerate(summary_widths):
+                    summary_table.columns[i].width = Cm(width)
                 
                 headers = ['序号', '试验分类', '试验项目', '测试结论']
                 for i, header in enumerate(headers):
@@ -1983,7 +1994,7 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                     for small_idx, small_case in enumerate(big_case['small_cases']):
                         clean_small_name = clean_case_number(small_case["name"])
                         doc.add_heading(f'{idx+1}.3.{big_idx+1}.{small_idx+1} {clean_small_name}', level=4)
-                        create_testcase_table(doc, small_case['data'])
+                        create_testcase_table(doc, small_case['data'], col_widths=table_widths.get('testcase') if table_widths else None)
             
             print(f"  ✓ {sheet_name} 处理完成")
             
@@ -2071,6 +2082,9 @@ def load_config(config_path):
         '试验标准': None,
         '试验条件': None,
         '规格要求': None,
+        # 表格列宽配置（单位：厘米）
+        'testcase_table_widths': None,    # 小用例属性表格列宽
+        'summary_table_widths': None,     # 试验结果汇总表格列宽
     }
     
     if not os.path.exists(config_path):
@@ -2241,6 +2255,27 @@ def main():
         if value:
             print(f"  {key}: {value}")
     
+    # 解析表格列宽配置
+    table_widths = {}
+    
+    # 小用例属性表格列宽
+    testcase_widths_str = config.get('testcase_table_widths') or config.get('小用例表格列宽')
+    if testcase_widths_str:
+        try:
+            table_widths['testcase'] = [float(w.strip()) for w in testcase_widths_str.split(',')]
+            print(f"  小用例表格列宽: {table_widths['testcase']} cm")
+        except:
+            print(f"  警告: 小用例表格列宽格式错误，使用默认值")
+    
+    # 试验结果汇总表格列宽
+    summary_widths_str = config.get('summary_table_widths') or config.get('汇总表格列宽')
+    if summary_widths_str:
+        try:
+            table_widths['summary'] = [float(w.strip()) for w in summary_widths_str.split(',')]
+            print(f"  汇总表格列宽: {table_widths['summary']} cm")
+        except:
+            print(f"  警告: 汇总表格列宽格式错误，使用默认值")
+    
     # 检查文件是否存在
     if not os.path.exists(config['excel_file']):
         print(f"错误: Excel文件不存在 - {config['excel_file']}")
@@ -2265,7 +2300,8 @@ def main():
         watermark_text=config['watermark_text'],
         report_name=config['report_name'],
         font_config=font_config,
-        testcase_config=testcase_config
+        testcase_config=testcase_config,
+        table_widths=table_widths
     )
 
     # 输出结果
