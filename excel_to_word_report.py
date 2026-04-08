@@ -1219,17 +1219,14 @@ class ExcelToWordReport:
         # 3. 如果还没找到，尝试检测列合并（横向合并）
         if not merged_ranges:
             print("未检测到行合并，尝试检测列合并...")
-            for row_idx in range(header_merge_end + 1, ws.max_row + 1):
-                for merged_range in ws.merged_cells.ranges:
-                    # 列合并：min_col != max_col，且包含试验项目列
-                    if (merged_range.min_row == row_idx and 
-                        merged_range.min_col <= test_col <= merged_range.max_col and
-                        merged_range.min_col != merged_range.max_col):
-                        cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
-                        if cell_value and str(cell_value).strip():
-                            merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
-                            print(f"找到大用例(列合并): 第{row_idx}行, 列{merged_range.min_col}-{merged_range.max_col}, 名字: {cell_value}")
-                            break
+            for merged_range in ws.merged_cells.ranges:
+                # 列合并：min_col != max_col（横向合并多列）
+                if merged_range.min_col != merged_range.max_col and merged_range.min_row > header_merge_end:
+                    row_idx = merged_range.min_row
+                    cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
+                    if cell_value and str(cell_value).strip():
+                        merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
+                        print(f"找到大用例(列合并): 第{row_idx}行, 列{merged_range.min_col}-{merged_range.max_col}, 名字: {cell_value}")
 
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
