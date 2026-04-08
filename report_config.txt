@@ -1,6 +1,7 @@
 # Excel转Word报告配置文件
 # 每行一个配置，格式：key=value
 # #开头的行为注释，会被忽略
+# 如果配置项为空或被注释掉，则从Excel读取对应值
 
 # ===== Excel文件配置 =====
 excel_file=D:\AI\test_data.xlsx
@@ -26,21 +27,31 @@ title3_bold=False
 body_size=10.5
 body_bold=False
 
-# ===== 小用例属性配置（优先级高于Excel）=====
-# 这些值会覆盖所有小用例，如果配置了就用配置的，没配置则从Excel读取
+# ===== 小用例属性配置 =====
+# 说明：配置了值就用配置的（对所有小用例生效），为空或注释掉则从Excel读取
 # 格式：字段名=值
+# 示例：
+#   sample_quantity=3 pcs        → 使用配置值 "3 pcs"
+#   sample_quantity=              → 为空，使用Excel值
+#   # sample_quantity=3 pcs       → 被注释，使用Excel值
 
 # 样机数量（如：3 pcs）
 sample_quantity=
+
 # 样机编号（如：1#、2#、3#）
 sample_number=
+
 # 试验机构
 test_organization=
+
 # 试验环境
 test_environment=
+
 # 试验标准
 test_standard=
+
 # 试验条件/试验方法
 test_condition=
+
 # 规格要求
 spec_requirement=
