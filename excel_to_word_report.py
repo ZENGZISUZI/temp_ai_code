@@ -1765,12 +1765,14 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
     if merge and len(sheets_to_process) > 1:
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
                                      logo_path, report_number, company_name, 
-                                     watermark_text, report_name, font_config)
+                                     watermark_text, report_name, font_config,
+                                     testcase_config)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                       logo_path, report_number, company_name, 
-                                      watermark_text, report_name, font_config)
+                                      watermark_text, report_name, font_config,
+                                      testcase_config)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -1809,7 +1811,8 @@ def _resolve_sheets(all_sheets, sheets):
 
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                 logo_path=None, report_number=None, company_name="公司", 
-                                watermark_text=None, report_name=None, font_config=None):
+                                watermark_text=None, report_name=None, font_config=None,
+                                testcase_config=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -1827,7 +1830,8 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
         try:
             converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
-                                          company_name, watermark_text, report_name, font_config)
+                                          company_name, watermark_text, report_name, font_config,
+                                          testcase_config)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
