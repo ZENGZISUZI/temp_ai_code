@@ -1282,11 +1282,18 @@ class ExcelToWordReport:
 
             # 小用例在合并单元格下方（从end_row+1到下一个大用例之前）
             next_start = merged_ranges[i + 1][0] if i + 1 < len(merged_ranges) else len(self.df) + 1
+            
+            print(f"\n解析大用例 '{big_case_name}':")
+            print(f"  合并行范围: {start_row}-{end_row}")
+            print(f"  小用例搜索范围: {end_row + 1} 到 {next_start - 1}")
+            print(f"  试验项目列索引: {test_col}")
 
             for row_idx in range(end_row + 1, next_start):
                 if row_idx <= len(self.df):
                     row_data = self.df.iloc[row_idx - 1]  # pandas索引从0开始
                     small_case_name = row_data.iloc[test_col - 1] if test_col else None
+                    
+                    print(f"  第{row_idx}行, 试验项目列值: {small_case_name}")
 
                     if pd.notna(small_case_name) and str(small_case_name).strip():
                         small_case = {
@@ -1294,6 +1301,7 @@ class ExcelToWordReport:
                             'data': self.extract_testcase_data(row_data)
                         }
                         big_case['small_cases'].append(small_case)
+                        print(f"    -> 找到小用例: {small_case_name}")
 
                         # 添加到汇总数据
                         self.summary_data.append({
