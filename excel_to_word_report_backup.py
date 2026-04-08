@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Excel测试报告转Word文档工具
 自动提取Excel数据生成标准Word报告模板
@@ -1842,8 +1842,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                           logo_path=None, report_number=None, company_name="公司", 
-                          watermark_text=None, report_name=None, font_config=None,
-                          testcase_config=None):
+                          watermark_text=None, report_name=None, font_config=None):
     """将多个sheet合并到一个Word文件"""
     from docx import Document
     from docx.oxml.ns import qn
@@ -2210,23 +2209,6 @@ def main():
         'body_bold': config.get('body_bold', False),
     }
     
-    # 提取小用例属性配置
-    testcase_config = {
-        'sample_quantity': config.get('sample_quantity'),
-        'sample_number': config.get('sample_number'),
-        'test_organization': config.get('test_organization'),
-        'test_environment': config.get('test_environment'),
-        'test_standard': config.get('test_standard'),
-        'test_condition': config.get('test_condition'),
-        'spec_requirement': config.get('spec_requirement'),
-    }
-    
-    # 打印配置信息
-    print(f"\n小用例属性配置:")
-    for key, value in testcase_config.items():
-        if value:
-            print(f"  {key}: {value}")
-    
     # 检查文件是否存在
     if not os.path.exists(config['excel_file']):
         print(f"错误: Excel文件不存在 - {config['excel_file']}")
@@ -2250,8 +2232,7 @@ def main():
         company_name=config['company_name'],
         watermark_text=config['watermark_text'],
         report_name=config['report_name'],
-        font_config=font_config,
-        testcase_config=testcase_config
+        font_config=font_config
     )
 
     # 输出结果
