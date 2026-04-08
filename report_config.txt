@@ -29,29 +29,28 @@ body_bold=False
 
 # ===== 小用例属性配置 =====
 # 说明：配置了值就用配置的（对所有小用例生效），为空或注释掉则从Excel读取
-# 格式：字段名=值
 # 示例：
-#   sample_quantity=3 pcs        → 使用配置值 "3 pcs"
-#   sample_quantity=              → 为空，使用Excel值
-#   # sample_quantity=3 pcs       → 被注释，使用Excel值
+#   样机数量=3 pcs        → 使用配置值 "3 pcs"
+#   样机数量=              → 为空，使用Excel值
+#   # 样机数量=3 pcs       → 被注释，使用Excel值
 
 # 样机数量（如：3 pcs）
-sample_quantity=
+样机数量=
 
 # 样机编号（如：1#、2#、3#）
-sample_number=
+样机编号=
 
 # 试验机构
-test_organization=
+试验机构=
 
 # 试验环境
-test_environment=
+试验环境=
 
 # 试验标准
-test_standard=
+试验标准=
 
 # 试验条件/试验方法
-test_condition=
+试验条件=
 
 # 规格要求
-spec_requirement=
+规格要求=

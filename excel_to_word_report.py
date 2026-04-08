@@ -2058,6 +2058,14 @@ def load_config(config_path):
         'test_standard': None,        # 试验标准
         'test_condition': None,       # 试验条件/试验方法
         'spec_requirement': None,     # 规格要求
+        # 中文配置项（兼容）
+        '样机数量': None,
+        '样机编号': None,
+        '试验机构': None,
+        '试验环境': None,
+        '试验标准': None,
+        '试验条件': None,
+        '规格要求': None,
     }
     
     if not os.path.exists(config_path):
@@ -2210,15 +2218,15 @@ def main():
         'body_bold': config.get('body_bold', False),
     }
     
-    # 提取小用例属性配置
+    # 提取小用例属性配置（支持中文和英文配置项，中文优先）
     testcase_config = {
-        'sample_quantity': config.get('sample_quantity'),
-        'sample_number': config.get('sample_number'),
-        'test_organization': config.get('test_organization'),
-        'test_environment': config.get('test_environment'),
-        'test_standard': config.get('test_standard'),
-        'test_condition': config.get('test_condition'),
-        'spec_requirement': config.get('spec_requirement'),
+        'sample_quantity': config.get('样机数量') or config.get('sample_quantity'),
+        'sample_number': config.get('样机编号') or config.get('sample_number'),
+        'test_organization': config.get('试验机构') or config.get('test_organization'),
+        'test_environment': config.get('试验环境') or config.get('test_environment'),
+        'test_standard': config.get('试验标准') or config.get('test_standard'),
+        'test_condition': config.get('试验条件') or config.get('test_condition'),
+        'spec_requirement': config.get('规格要求') or config.get('spec_requirement'),
     }
     
     # 打印配置信息
