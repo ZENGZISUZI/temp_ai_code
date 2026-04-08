@@ -1086,6 +1086,9 @@ class ExcelToWordReport:
         参数:
             sheet_name: sheet名称或索引
         """
+        # 保存sheet名称，供后续使用
+        self.sheet_name = sheet_name
+        
         # 先检测实际格式
         actual_format = detect_excel_format(self.excel_path)
         file_ext = os.path.splitext(self.excel_path)[1].lower()
@@ -1140,7 +1143,17 @@ class ExcelToWordReport:
         from openpyxl import load_workbook
 
         wb = load_workbook(self.excel_path)
-        ws = wb.active
+        
+        # 使用用户指定的sheet，而不是活动sheet
+        if hasattr(self, 'sheet_name') and self.sheet_name is not None:
+            if isinstance(self.sheet_name, int):
+                ws = wb.worksheets[self.sheet_name]
+            else:
+                ws = wb[self.sheet_name]
+        else:
+            ws = wb.active
+        
+        print(f"正在读取sheet: {ws.title}")
 
         # 找到试验项目列（在所有行中搜索）
         test_col = None
