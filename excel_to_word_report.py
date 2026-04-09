@@ -1461,11 +1461,31 @@ class ExcelToWordReport:
             dots_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
             dots_run.font.size = Pt(body_size)
             
-            # 添加页码占位符
-            page_run = toc_para.add_run('1')
-            page_run.font.name = font_name
-            page_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            page_run.font.size = Pt(body_size)
+            # 添加页码域（PAGEREF，动态引用书签页码）
+            # 用户需要按 Ctrl+A 全选后按 F9 更新域才能显示正确页码
+            page_run = toc_para.add_run()
+            fldChar1 = OxmlElement('w:fldChar')
+            fldChar1.set(qn('w:fldCharType'), 'begin')
+            
+            instrText = OxmlElement('w:instrText')
+            instrText.text = f' PAGEREF {bookmark_name} '
+            
+            fldChar2 = OxmlElement('w:fldChar')
+            fldChar2.set(qn('w:fldCharType'), 'separate')
+            
+            page_text = toc_para.add_run('1')
+            page_text.font.name = font_name
+            page_text._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            page_text.font.size = Pt(body_size)
+            
+            fldChar3 = OxmlElement('w:fldChar')
+            fldChar3.set(qn('w:fldCharType'), 'end')
+            
+            page_run._r.append(fldChar1)
+            page_run._r.append(instrText)
+            page_run._r.append(fldChar2)
+            page_run._r.append(page_text._r)
+            page_run._r.append(fldChar3)
         
         doc.add_paragraph()  # 空行
 
