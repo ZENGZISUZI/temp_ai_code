@@ -1449,11 +1449,17 @@ class ExcelToWordReport:
         for item_text, bookmark_name, level in toc_items:
             toc_para = doc.add_paragraph()
             
-            # 根据级别添加缩进
-            indent = '    ' * (level - 1)
+            # 根据级别设置段落缩进（使用段落格式，更专业）
+            from docx.shared import Cm
+            if level == 1:
+                toc_para.paragraph_format.left_indent = Cm(0)      # 大标题：无缩进
+            elif level == 2:
+                toc_para.paragraph_format.left_indent = Cm(0.5)    # 次标题/大用例：缩进0.5cm
+            else:  # level == 3
+                toc_para.paragraph_format.left_indent = Cm(1)      # 小用例：缩进1cm
             
             # 添加超链接标题
-            add_hyperlink(toc_para, indent + item_text, bookmark_name, font_name, body_size)
+            add_hyperlink(toc_para, item_text, bookmark_name, font_name, body_size)
             
             # 添加点号
             dots_run = toc_para.add_run(' ' + '.' * 40 + ' ')
