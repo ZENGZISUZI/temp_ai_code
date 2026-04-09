@@ -250,6 +250,11 @@ def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, al
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         else:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        
+        # 设置段落行间距为单倍行距，无段前段后间距
+        paragraph.paragraph_format.line_spacing = 1.0
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
     
     # 设置单元格垂直居中
     if vertical_center:
