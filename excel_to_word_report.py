@@ -410,10 +410,6 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
     cell.text = ''
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
-    # 添加空行
-    for _ in range(2):
-        doc.add_paragraph()
-    
     # Logo图片（居中）
     if logo_path and os.path.exists(logo_path):
         try:
@@ -423,9 +419,6 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
             logo_run.add_picture(logo_path, width=Cm(4), height=Cm(2.6))  # 较大的logo
         except Exception as e:
             print(f"警告: 无法添加Logo图片 - {e}")
-    
-    # 添加空行
-    doc.add_paragraph()
     
     # 报告编号
     if report_number:
