@@ -1460,6 +1460,12 @@ class ExcelToWordReport:
         for item_text, bookmark_name, level in toc_items:
             toc_para = doc.add_paragraph()
             
+            # 设置行间距为固定值12磅（紧凑）
+            from docx.shared import Pt
+            toc_para.paragraph_format.line_spacing = Pt(12)
+            toc_para.paragraph_format.space_before = Pt(0)
+            toc_para.paragraph_format.space_after = Pt(0)
+            
             # 根据级别设置段落缩进和加粗
             from docx.shared import Cm
             if level == 1:
