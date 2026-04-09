@@ -2,9 +2,10 @@
 """
 Excel测试报告转Word文档工具
 自动提取Excel数据生成标准Word报告模板
-依赖: pip install pandas openpyxl python-docx xlrd
+依赖: pip install pandas openpyxl python-docx xlrd Pillow
       - openpyxl: 支持 .xlsx 格式
       - xlrd: 支持 .xls 格式（旧版Excel）
+      - Pillow: 支持图片处理
 """
 
 import pandas as pd
@@ -22,6 +23,15 @@ import traceback
 from datetime import datetime
 from openpyxl import load_workbook
 import xlrd
+import io
+
+# 尝试导入PIL（可选依赖，用于图片处理）
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("警告: Pillow未安装，Excel中的图片将无法提取。请运行: pip install Pillow")
 
 # 尝试导入win32com（可选依赖）
 try:
@@ -1249,9 +1259,51 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
         # 填充内容
         table.cell(row_idx, 0).text = field
         set_cell_font(table.cell(row_idx, 0), font_name=font_name, font_size=font_size, bold=True, align_center=False)
+        
+        # 获取值（可能是字符串或包含图片的字典）
         value = data_dict.get(field, '')
-        table.cell(row_idx, 1).text = str(value) if value else ''
-        set_cell_font(table.cell(row_idx, 1), font_name=font_name, font_size=font_size, align_center=False)
+        
+        # 检查是否包含图片
+        if isinstance(value, dict) and 'image' in value:
+            # 有图片的情况
+            cell = table.cell(row_idx, 1)
+            
+            # 添加文本
+            text_value = value.get('text', '')
+            if text_value:
+                cell.text = str(text_value)
+                set_cell_font(cell, font_name=font_name, font_size=font_size, align_center=False)
+            
+            # 添加图片
+            img_info = value.get('image')
+            if img_info:
+                try:
+                    # 获取图片数据
+                    img_data = img_info.get('data')
+                    if img_data and PIL_AVAILABLE:
+                        # 创建图片流
+                        img_stream = io.BytesIO(img_data)
+                        
+                        # 获取单元格的第一个段落
+                        if not cell.paragraphs:
+                            cell.add_paragraph()
+                        para = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+                        
+                        # 添加图片到段落
+                        run = para.add_run()
+                        # 使用原始尺寸或按比例缩放
+                        run.add_picture(img_stream, width=Cm(10))  # 设置宽度，高度自动按比例
+                        
+                except Exception as e:
+                    print(f"  警告: 插入图片失败 - {e}")
+                    # 插入图片失败时，只显示文本
+                    if text_value:
+                        cell.text = str(text_value)
+                        set_cell_font(cell, font_name=font_name, font_size=font_size, align_center=False)
+        else:
+            # 只有文本的情况
+            table.cell(row_idx, 1).text = str(value) if value else ''
+            set_cell_font(table.cell(row_idx, 1), font_name=font_name, font_size=font_size, align_center=False)
 
     doc.add_paragraph()
     return table
@@ -1365,6 +1417,57 @@ class ExcelToWordReport:
             self.df = pd.read_excel(self.excel_path, sheet_name=sheet_name, header=None, engine=alt_engine)
 
         self.excel_columns = [str(col) for col in self.df.iloc[0].tolist() if pd.notna(col)]
+        
+        # 提取Excel中的图片（仅xlsx格式支持）
+        self.excel_images = {}
+        if file_ext == '.xlsx':
+            self._extract_excel_images()
+
+    def _extract_excel_images(self):
+        """从Excel中提取图片信息（仅xlsx格式）"""
+        try:
+            wb = load_workbook(self.excel_path)
+            
+            # 使用用户指定的sheet
+            if hasattr(self, 'sheet_name') and self.sheet_name is not None:
+                if isinstance(self.sheet_name, int):
+                    ws = wb.worksheets[self.sheet_name]
+                else:
+                    ws = wb[self.sheet_name]
+            else:
+                ws = wb.active
+            
+            # 遍历所有图片
+            for image in ws._images:
+                # 获取图片的锚点信息（位置）
+                anchor = image.anchor
+                
+                # 获取图片所在单元格的行和列（openpyxl的anchor格式）
+                # _from 是图片左上角的位置
+                if hasattr(anchor, '_from'):
+                    row = anchor._from.row  # 0-based
+                    col = anchor._from.col  # 0-based
+                elif hasattr(anchor, 'row') and hasattr(anchor, 'col'):
+                    row = anchor.row
+                    col = anchor.col
+                else:
+                    continue
+                
+                # 获取图片数据
+                img_data = image._data()
+                
+                # 存储图片信息: {(row, col): image_data}
+                self.excel_images[(row, col)] = {
+                    'data': img_data,
+                    'width': image.width,
+                    'height': image.height
+                }
+            
+            if self.excel_images:
+                print(f"  从Excel中提取了 {len(self.excel_images)} 张图片")
+                
+        except Exception as e:
+            print(f"  警告: 提取Excel图片失败 - {e}")
 
     def find_test_project_column(self):
         """找到"试验项目"列（在所有行中搜索）"""
@@ -1506,7 +1609,7 @@ class ExcelToWordReport:
                     if pd.notna(small_case_name) and str(small_case_name).strip():
                         small_case = {
                             'name': str(small_case_name),
-                            'data': self.extract_testcase_data(row_data)
+                            'data': self.extract_testcase_data(row_data, row_idx)
                         }
                         big_case['small_cases'].append(small_case)
 
@@ -1583,15 +1686,16 @@ class ExcelToWordReport:
             if pd.notna(test_project):
                 pass
 
-    def extract_testcase_data(self, row_data):
+    def extract_testcase_data(self, row_data, excel_row_idx=None):
         """
         从行数据中提取测试用例数据（配置优先，Excel补充）
 
         参数:
             row_data: DataFrame的一行
+            excel_row_idx: Excel行号（openpyxl格式，从1开始），用于提取图片
 
         返回:
-            字典 {字段名: 值}
+            字典 {字段名: 值} 或 {字段名: {'text': 值, 'image': 图片数据}}
         """
         data = {}
         
@@ -1634,6 +1738,21 @@ class ExcelToWordReport:
                             break
                 if field in data:
                     break
+        
+        # 3. 提取该行的图片（如果有）
+        if excel_row_idx and hasattr(self, 'excel_images') and self.excel_images:
+            for (img_row, img_col), img_info in self.excel_images.items():
+                # openpyxl的行号是0-based，需要匹配
+                if img_row == excel_row_idx - 1:  # openpyxl是0-based
+                    # 找到对应的字段名
+                    for col_name, col_idx in self.col_name_to_idx.items():
+                        if col_idx == img_col:
+                            # 如果该字段已有文本值，添加图片信息
+                            if col_name in data:
+                                data[col_name] = {'text': data[col_name], 'image': img_info}
+                            else:
+                                data[col_name] = {'text': '', 'image': img_info}
+                            break
 
         return data
 
