@@ -1241,13 +1241,34 @@ class ExcelToWordReport:
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
         
-        # 打印找到的所有大用例
-        print(f"\n=== 找到的大用例列表 ===")
+        # 验证大用例：必须下面有小用例才算真正的大用例
+        # 大用例下方（end_row+1到下一个大用例之前）必须有非空的小用例数据
+        valid_merged_ranges = []
         for i, (start_row, end_row, name) in enumerate(merged_ranges):
-            print(f"  [{i+1}] 行{start_row}-{end_row}: {name}")
-        print(f"=== 共 {len(merged_ranges)} 个大用例 ===\n")
+            # 确定搜索范围：从当前大用例结束行到下一个大用例开始行
+            next_start = merged_ranges[i + 1][0] if i + 1 < len(merged_ranges) else ws.max_row + 1
+            
+            # 检查下方是否有小用例（试验项目列有非空值）
+            has_small_case = False
+            for row_idx in range(end_row + 1, next_start):
+                cell_value = ws.cell(row=row_idx, column=test_col).value
+                if cell_value and str(cell_value).strip():
+                    has_small_case = True
+                    break
+            
+            if has_small_case:
+                valid_merged_ranges.append((start_row, end_row, name))
+                print(f"✓ 确认大用例: 行{start_row}-{end_row}, 名字: {name} (下方有小用例)")
+            else:
+                print(f"✗ 排除伪大用例: 行{start_row}-{end_row}, 名字: {name} (下方无小用例)")
         
-        return merged_ranges, test_col, header_row
+        # 打印最终的大用例列表
+        print(f"\n=== 有效大用例列表 ===")
+        for i, (start_row, end_row, name) in enumerate(valid_merged_ranges):
+            print(f"  [{i+1}] 行{start_row}-{end_row}: {name}")
+        print(f"=== 共 {len(valid_merged_ranges)} 个有效大用例 ===\n")
+        
+        return valid_merged_ranges, test_col, header_row
 
     def parse_overview_data(self, big_case_start_row):
         """
