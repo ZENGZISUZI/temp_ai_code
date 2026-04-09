@@ -12,11 +12,22 @@ from docx import Document
 from docx.shared import Pt, Inches, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
+from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from lxml import etree
 import os
 import re
+import traceback
 from datetime import datetime
+from openpyxl import load_workbook
+import xlrd
+
+# 尝试导入win32com（可选依赖）
+try:
+    import win32com.client
+except ImportError:
+    win32com = None
 
 
 # ==================== 智能字段映射配置 ====================
@@ -265,8 +276,6 @@ def add_header_footer(doc, report_name, report_number, logo_path=None, company_n
         logo_path: Logo图片路径（可选）
         company_name: 公司名称（用于保密信息）
     """
-    from docx.enum.section import WD_ORIENT
-    
     # 获取文档的第一个节
     section = doc.sections[0]
     
@@ -531,8 +540,6 @@ def add_watermark_to_docx(doc, watermark_text):
         doc: Word文档对象
         watermark_text: 水印文字
     """
-    from lxml import etree
-    
     # VML和Office命名空间
     VML_NS = 'urn:schemas-microsoft-com:vml'
     OFFICE_NS = 'urn:schemas-microsoft-com:office:office'
@@ -632,9 +639,10 @@ def close_word_document(file_path):
         True: 成功关闭或文件未被占用
         False: 关闭失败
     """
+    if win32com is None:
+        return True
+    
     try:
-        import win32com.client
-        
         # 获取已运行的Word实例
         word = win32com.client.Dispatch("Word.Application")
         
@@ -666,9 +674,12 @@ def update_toc_in_word(word_path):
     参数:
         word_path: Word文档路径
     """
+    if win32com is None:
+        print("⚠️ 未安装win32com，无法自动更新目录")
+        print("  提示: pip install pywin32")
+        return False
+    
     try:
-        import win32com.client
-        
         # 使用DispatchEx创建独立的Word实例，避免影响用户已打开的Word
         word = win32com.client.DispatchEx("Word.Application")
         word.Visible = False  # 后台运行
@@ -695,10 +706,6 @@ def update_toc_in_word(word_path):
             # 退出独立的Word实例
             word.Quit()
             
-    except ImportError:
-        print("⚠️ 未安装win32com，无法自动更新目录")
-        print("  提示: pip install pywin32")
-        return False
     except Exception as e:
         print(f"⚠️ 更新目录失败: {e}")
         return False
@@ -779,7 +786,6 @@ def setup_heading_styles(doc, font_config=None):
         doc: Word文档对象
         font_config: 字体配置字典
     """
-    from docx.shared import RGBColor
     
     default_config = {
         'font_name': '微软雅黑',
@@ -864,9 +870,6 @@ def format_date_only(value):
     
     value_str = str(value).strip()
     
-    # 尝试解析常见日期格式
-    import re
-    
     # 匹配 YYYY-MM-DD 或 YYYY/MM/DD 格式
     date_match = re.match(r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})', value_str)
     if date_match:
@@ -879,7 +882,6 @@ def format_date_only(value):
     
     # 如果是 datetime 对象
     try:
-        from datetime import datetime
         if isinstance(value, datetime):
             return value.strftime('%Y-%m-%d')
     except:
@@ -905,7 +907,6 @@ def format_quantity(value):
     value_str = str(value).strip()
     
     # 如果已经是纯数字，添加pcs
-    import re
     if re.match(r'^\d+(\.\d+)?$', value_str):
         return f"{value_str} pcs"
     
@@ -983,7 +984,6 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     
     # 设置列宽
     if col_widths and len(col_widths) == 4:
-        from docx.shared import Cm
         for i, width in enumerate(col_widths):
             table.columns[i].width = Cm(width)
     
@@ -1090,7 +1090,6 @@ class ExcelToWordReport:
     
     def _generate_report_number(self):
         """生成默认报告编号（日期+时间）"""
-        from datetime import datetime
         return datetime.now().strftime("RPT%Y%m%d%H%M%S")
 
     def load_excel(self, sheet_name=0):
@@ -1139,11 +1138,8 @@ class ExcelToWordReport:
 
         if file_ext == '.xls':
             return [], None, None
-            return [], None, None
 
         # xlsx格式使用openpyxl读取合并单元格信息
-        from openpyxl import load_workbook
-
         wb = load_workbook(self.excel_path)
         
         # 使用用户指定的sheet，而不是活动sheet
@@ -1298,7 +1294,6 @@ class ExcelToWordReport:
                         self.col_name_to_idx[str(col_name).strip()] = col_idx
         else:
             # xlsx格式使用openpyxl读取标题行（支持多行合并标题）
-            from openpyxl import load_workbook
             wb = load_workbook(self.excel_path)
             ws = wb.active
             
@@ -1551,7 +1546,6 @@ class ExcelToWordReport:
         set_table_border(summary_table)
         
         # 设置列宽
-        from docx.shared import Cm
         summary_widths = self.table_widths.get('summary', [2.67, 6.4, 5.75, 2.67])
         for i, width in enumerate(summary_widths):
             summary_table.columns[i].width = Cm(width)
@@ -1728,19 +1722,16 @@ def list_sheets(excel_path):
     if actual_format == 'xls':
         # xls格式用xlrd
         try:
-            import xlrd
             wb = xlrd.open_workbook(excel_path)
             return wb.sheet_names()
         except Exception as e:
             print(f"xlrd读取失败: {e}")
             # 尝试用pandas
-            import pandas as pd
             xl = pd.ExcelFile(excel_path, engine='xlrd')
             return xl.sheet_names
     else:
         # xlsx格式用openpyxl
         try:
-            from openpyxl import load_workbook
             wb = load_workbook(excel_path, read_only=True)
             sheets = wb.sheetnames
             wb.close()
@@ -1749,13 +1740,11 @@ def list_sheets(excel_path):
             print(f"openpyxl读取失败: {e}")
             # 可能实际是xls格式，尝试xlrd
             try:
-                import xlrd
                 wb = xlrd.open_workbook(excel_path)
                 return wb.sheet_names()
             except:
                 pass
             # 最后尝试pandas
-            import pandas as pd
             xl = pd.ExcelFile(excel_path)
             return xl.sheet_names
 
@@ -1881,7 +1870,6 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
             output_files.append(output_path)
         except Exception as e:
             print(f"处理sheet '{sheet_name}' 时出错: {e}")
-            import traceback
             traceback.print_exc()
 
     return output_files
@@ -1892,9 +1880,6 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                           watermark_text=None, report_name=None, font_config=None,
                           testcase_config=None, table_widths=None):
     """将多个sheet合并到一个Word文件"""
-    from docx import Document
-    from docx.oxml.ns import qn
-    
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
     word_path = os.path.join(output_dir, f"{base_name}_合并报告.docx")
     
@@ -1956,7 +1941,6 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                 set_table_border(summary_table)
                 
                 # 设置列宽
-                from docx.shared import Cm
                 summary_widths = table_widths.get('summary', [2.67, 6.4, 5.75, 2.67]) if table_widths else [2.67, 6.4, 5.75, 2.67]
                 for i, width in enumerate(summary_widths):
                     summary_table.columns[i].width = Cm(width)
@@ -2030,7 +2014,6 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
             
         except Exception as e:
             print(f"  ✗ 处理sheet '{sheet_name}' 时出错: {e}")
-            import traceback
             traceback.print_exc()
     
     # 保存文档
