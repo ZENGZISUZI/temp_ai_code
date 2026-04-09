@@ -1223,20 +1223,19 @@ class ExcelToWordReport:
                         merged_ranges.append((start_row, end_row, str(cell_value).strip()))
                         print(f"找到大用例(前一列行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
         
-        # 3. 如果还没找到，尝试检测列合并（横向合并）
-        if not merged_ranges:
-            print("未检测到行合并，尝试检测列合并...")
-            for merged_range in ws.merged_cells.ranges:
-                # 列合并：min_col != max_col（横向合并多列）
-                if merged_range.min_col != merged_range.max_col and merged_range.min_row > header_merge_end:
-                    row_idx = merged_range.min_row
-                    cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
-                    print(f"  检测到列合并: 行{row_idx}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
-                    if cell_value and str(cell_value).strip():
-                        merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
-                        print(f"    -> 添加为大用例")
-                    else:
-                        print(f"    -> 跳过（值为空）")
+        # 3. 检测列合并（横向合并）- 大用例的主要特征
+        print("检测列合并（横向合并）...")
+        for merged_range in ws.merged_cells.ranges:
+            # 列合并：min_col != max_col（横向合并多列）
+            if merged_range.min_col != merged_range.max_col and merged_range.min_row > header_merge_end:
+                row_idx = merged_range.min_row
+                cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
+                print(f"  检测到列合并: 行{row_idx}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
+                if cell_value and str(cell_value).strip():
+                    merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
+                    print(f"    -> 添加为候选大用例")
+                else:
+                    print(f"    -> 跳过（值为空）")
 
         # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
