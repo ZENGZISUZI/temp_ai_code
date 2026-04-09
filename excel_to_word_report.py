@@ -1196,27 +1196,32 @@ class ExcelToWordReport:
         # 大用例名字可能在试验项目列，也可能在试验项目列的前一列
         # 先检测试验项目列，再检测前一列
         
-        # 1. 先检测试验项目列的行合并
+        # 1. 先检测试验项目列的行合并（必须是跨多行的合并，min_row != max_row）
         for merged_range in ws.merged_cells.ranges:
-            if merged_range.min_col == test_col and merged_range.min_row > header_merge_end:
+            # 大用例必须满足：在试验项目列 + 在标题行下方 + 是行合并（跨多行）
+            if (merged_range.min_col == test_col and 
+                merged_range.min_row > header_merge_end and
+                merged_range.min_row != merged_range.max_row):  # 必须是行合并
                 start_row = merged_range.min_row
                 end_row = merged_range.max_row
                 cell_value = ws.cell(row=start_row, column=test_col).value
                 if cell_value and str(cell_value).strip():
                     merged_ranges.append((start_row, end_row, str(cell_value).strip()))
-                    print(f"找到大用例(试验项目列合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
+                    print(f"找到大用例(试验项目列行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
         
-        # 2. 如果试验项目列没找到，检测前一列的行合并
+        # 2. 如果试验项目列没找到，检测前一列的行合并（同样必须是跨多行）
         if not merged_ranges and test_col > 1:
             print(f"试验项目列(第{test_col}列)未找到行合并，尝试检测前一列(第{test_col-1}列)...")
             for merged_range in ws.merged_cells.ranges:
-                if merged_range.min_col == test_col - 1 and merged_range.min_row > header_merge_end:
+                if (merged_range.min_col == test_col - 1 and 
+                    merged_range.min_row > header_merge_end and
+                    merged_range.min_row != merged_range.max_row):  # 必须是行合并
                     start_row = merged_range.min_row
                     end_row = merged_range.max_row
                     cell_value = ws.cell(row=start_row, column=test_col - 1).value
                     if cell_value and str(cell_value).strip():
                         merged_ranges.append((start_row, end_row, str(cell_value).strip()))
-                        print(f"找到大用例(前一列合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
+                        print(f"找到大用例(前一列行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
         
         # 3. 如果还没找到，尝试检测列合并（横向合并）
         if not merged_ranges:
