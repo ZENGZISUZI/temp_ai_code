@@ -1390,6 +1390,10 @@ class ExcelToWordReport:
         """生成Word报告"""
         doc = Document()
 
+        # 禁用拼写和语法检查（避免红色下划线）
+        doc.settings.spell_errors = False
+        doc.settings.grammar_errors = False
+
         # 设置默认字体
         font_name = self.font_config.get('font_name', '微软雅黑')
         body_size = self.font_config.get('body_size', 10.5)
