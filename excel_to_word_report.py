@@ -2117,8 +2117,10 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
         print(f"正在处理sheet: {sheet_name}")
         print('='*50)
 
-        # 生成输出文件名
-        if len(sheets_to_process) == 1:
+        # 生成输出文件名：优先使用report_name
+        if report_name:
+            word_path = os.path.join(output_dir, f"{report_name}.docx")
+        elif len(sheets_to_process) == 1:
             word_path = os.path.join(output_dir, f"{base_name}_报告.docx")
         else:
             word_path = os.path.join(output_dir, f"{base_name}_{sheet_name}_报告.docx")
