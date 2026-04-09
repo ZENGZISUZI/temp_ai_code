@@ -1093,37 +1093,27 @@ class ExcelToWordReport:
         actual_format = detect_excel_format(self.excel_path)
         file_ext = os.path.splitext(self.excel_path)[1].lower()
         
-        print(f"文件扩展名: {file_ext}, 实际格式: {actual_format}")
-        
         # 根据实际格式选择引擎
         if actual_format == 'xls':
             engine = 'xlrd'
         else:
             engine = 'openpyxl'
 
-        print(f"使用引擎: {engine}")
-
         try:
             self.df = pd.read_excel(self.excel_path, sheet_name=sheet_name, header=None, engine=engine)
         except Exception as e:
             # 如果默认引擎失败，尝试另一个
             alt_engine = 'xlrd' if engine == 'openpyxl' else 'openpyxl'
-            print(f"引擎 {engine} 失败: {e}")
-            print(f"尝试 {alt_engine}...")
             self.df = pd.read_excel(self.excel_path, sheet_name=sheet_name, header=None, engine=alt_engine)
 
         self.excel_columns = [str(col) for col in self.df.iloc[0].tolist() if pd.notna(col)]
-        print(f"加载Excel成功，共 {len(self.df)} 行")
-        print(f"检测到列名: {self.excel_columns[:10]}...")  # 显示前10个
 
     def find_test_project_column(self):
         """找到"试验项目"列（在所有行中搜索）"""
-        # 在所有行中搜索"试验项目"列名
         for row_idx in range(len(self.df)):
             for col_idx, cell in enumerate(self.df.iloc[row_idx]):
                 if pd.notna(cell) and '试验项目' in str(cell):
-                    print(f"找到'试验项目'列: 第{row_idx + 1}行, 第{col_idx + 1}列")
-                    return col_idx, row_idx  # 返回列索引和标题行索引
+                    return col_idx, row_idx
         return None, None
 
     def find_merged_cells_info(self):
@@ -1131,12 +1121,10 @@ class ExcelToWordReport:
         检测合并单元格（大用例）
         返回: [(起始行, 结束行, 大用例名), ...]
         """
-        # 根据文件格式选择库
         file_ext = os.path.splitext(self.excel_path)[1].lower()
 
         if file_ext == '.xls':
-            # xls格式用xlrd，不支持合并单元格检测
-            print("警告: .xls格式不支持合并单元格检测，将使用备用解析方式")
+            return [], None, None
             return [], None, None
 
         # xlsx格式使用openpyxl读取合并单元格信息
@@ -1152,17 +1140,8 @@ class ExcelToWordReport:
                 ws = wb[self.sheet_name]
         else:
             ws = wb.active
-        
-        print(f"正在读取sheet: {ws.title}")
-        
-        # 调试：打印所有合并单元格
-        print(f"\n=== 调试信息：所有合并单元格 ===")
-        for merged_range in ws.merged_cells.ranges:
-            cell_value = ws.cell(row=merged_range.min_row, column=merged_range.min_col).value
-            print(f"  合并范围: 行{merged_range.min_row}-{merged_range.max_row}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
-        print(f"=== 合并单元格总数: {len(ws.merged_cells.ranges)} ===\n")
 
-        # 找到试验项目列（在所有行中搜索）
+        # 找到试验项目列
         test_col = None
         header_row = None
         for row_idx in range(1, ws.max_row + 1):
@@ -1171,83 +1150,37 @@ class ExcelToWordReport:
                 if cell_value and '试验项目' in str(cell_value):
                     test_col = col_idx
                     header_row = row_idx
-                    print(f"找到'试验项目'列: 第{row_idx}行, 第{col_idx}列")
                     break
             if test_col:
                 break
 
         if not test_col:
-            print("未找到'试验项目'列")
             return [], None, None
 
         merged_ranges = []
-        header_merge_end = header_row  # 标题行合并的结束行
+        header_merge_end = header_row
         
-        # 先找到标题行的合并范围（可能是行合并或列合并）
+        # 找到标题行的合并范围
         for merged_range in ws.merged_cells.ranges:
             if merged_range.min_row == header_row and merged_range.min_col <= test_col <= merged_range.max_col:
                 header_merge_end = merged_range.max_row
-                print(f"标题行合并范围: 第{header_row}-{header_merge_end}行")
                 break
         
-        print(f"header_merge_end = {header_merge_end} (大用例必须在此行之后)")
-        
-        # 检测大用例：查找标题行下方的行合并单元格
-        # 大用例名字可能在试验项目列，也可能在试验项目列的前一列
-        # 先检测试验项目列，再检测前一列
-        
-        # 1. 先检测试验项目列的行合并（必须是跨多行的合并，min_row != max_row）
+        # 检测大用例：列合并（横向合并多列）且在标题行下方
         for merged_range in ws.merged_cells.ranges:
-            # 大用例必须满足：在试验项目列 + 在标题行下方 + 是行合并（跨多行）
-            if (merged_range.min_col == test_col and 
-                merged_range.min_row > header_merge_end and
-                merged_range.min_row != merged_range.max_row):  # 必须是行合并
-                start_row = merged_range.min_row
-                end_row = merged_range.max_row
-                cell_value = ws.cell(row=start_row, column=test_col).value
-                if cell_value and str(cell_value).strip():
-                    merged_ranges.append((start_row, end_row, str(cell_value).strip()))
-                    print(f"找到大用例(试验项目列行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
-        
-        # 2. 如果试验项目列没找到，检测前一列的行合并（同样必须是跨多行）
-        if not merged_ranges and test_col > 1:
-            print(f"试验项目列(第{test_col}列)未找到行合并，尝试检测前一列(第{test_col-1}列)...")
-            for merged_range in ws.merged_cells.ranges:
-                if (merged_range.min_col == test_col - 1 and 
-                    merged_range.min_row > header_merge_end and
-                    merged_range.min_row != merged_range.max_row):  # 必须是行合并
-                    start_row = merged_range.min_row
-                    end_row = merged_range.max_row
-                    cell_value = ws.cell(row=start_row, column=test_col - 1).value
-                    if cell_value and str(cell_value).strip():
-                        merged_ranges.append((start_row, end_row, str(cell_value).strip()))
-                        print(f"找到大用例(前一列行合并): 第{start_row}-{end_row}行, 名字: {cell_value}")
-        
-        # 3. 检测列合并（横向合并）- 大用例的主要特征
-        print("检测列合并（横向合并）...")
-        for merged_range in ws.merged_cells.ranges:
-            # 列合并：min_col != max_col（横向合并多列）
             if merged_range.min_col != merged_range.max_col and merged_range.min_row > header_merge_end:
                 row_idx = merged_range.min_row
                 cell_value = ws.cell(row=row_idx, column=merged_range.min_col).value
-                print(f"  检测到列合并: 行{row_idx}, 列{merged_range.min_col}-{merged_range.max_col}, 值: {cell_value}")
                 if cell_value and str(cell_value).strip():
                     merged_ranges.append((row_idx, row_idx, str(cell_value).strip()))
-                    print(f"    -> 添加为候选大用例")
-                else:
-                    print(f"    -> 跳过（值为空）")
 
-        # 按行号排序
         merged_ranges.sort(key=lambda x: x[0])
         
-        # 验证大用例：必须下面有小用例才算真正的大用例
-        # 大用例下方（end_row+1到下一个大用例之前）必须有非空的小用例数据
+        # 验证大用例：必须下方有小用例
         valid_merged_ranges = []
         for i, (start_row, end_row, name) in enumerate(merged_ranges):
-            # 确定搜索范围：从当前大用例结束行到下一个大用例开始行
             next_start = merged_ranges[i + 1][0] if i + 1 < len(merged_ranges) else ws.max_row + 1
             
-            # 检查下方是否有小用例（试验项目列有非空值）
             has_small_case = False
             for row_idx in range(end_row + 1, next_start):
                 cell_value = ws.cell(row=row_idx, column=test_col).value
@@ -1257,15 +1190,6 @@ class ExcelToWordReport:
             
             if has_small_case:
                 valid_merged_ranges.append((start_row, end_row, name))
-                print(f"✓ 确认大用例: 行{start_row}-{end_row}, 名字: {name} (下方有小用例)")
-            else:
-                print(f"✗ 排除伪大用例: 行{start_row}-{end_row}, 名字: {name} (下方无小用例)")
-        
-        # 打印最终的大用例列表
-        print(f"\n=== 有效大用例列表 ===")
-        for i, (start_row, end_row, name) in enumerate(valid_merged_ranges):
-            print(f"  [{i+1}] 行{start_row}-{end_row}: {name}")
-        print(f"=== 共 {len(valid_merged_ranges)} 个有效大用例 ===\n")
         
         return valid_merged_ranges, test_col, header_row
 
@@ -1295,15 +1219,11 @@ class ExcelToWordReport:
                             self.overview_data[field] = value_str
                             break
 
-        print(f"解析概述数据: {self.overview_data}")
-
     def parse_test_cases(self):
         """解析测试用例（大用例和小用例）"""
         merged_ranges, test_col, header_row = self.find_merged_cells_info()
 
         if not merged_ranges:
-            print("未检测到合并单元格，尝试其他方式解析...")
-            # 备用解析逻辑
             self.parse_without_merge()
             return
 
@@ -1311,7 +1231,7 @@ class ExcelToWordReport:
         first_big_case_row = merged_ranges[0][0]
         self.parse_overview_data(first_big_case_row)
 
-        # 建立列名到索引的映射（使用标题行）
+        # 建立列名到索引的映射
         self.build_column_mapping(header_row)
 
         # 解析大用例和小用例
@@ -1321,20 +1241,12 @@ class ExcelToWordReport:
                 'small_cases': []
             }
 
-            # 小用例在合并单元格下方（从end_row+1到下一个大用例之前）
             next_start = merged_ranges[i + 1][0] if i + 1 < len(merged_ranges) else len(self.df) + 1
-            
-            print(f"\n解析大用例 '{big_case_name}':")
-            print(f"  合并行范围: {start_row}-{end_row}")
-            print(f"  小用例搜索范围: {end_row + 1} 到 {next_start - 1}")
-            print(f"  试验项目列索引: {test_col}")
 
             for row_idx in range(end_row + 1, next_start):
                 if row_idx <= len(self.df):
-                    row_data = self.df.iloc[row_idx - 1]  # pandas索引从0开始
+                    row_data = self.df.iloc[row_idx - 1]
                     small_case_name = row_data.iloc[test_col - 1] if test_col else None
-                    
-                    print(f"  第{row_idx}行, 试验项目列值: {small_case_name}")
 
                     if pd.notna(small_case_name) and str(small_case_name).strip():
                         small_case = {
@@ -1342,9 +1254,7 @@ class ExcelToWordReport:
                             'data': self.extract_testcase_data(row_data)
                         }
                         big_case['small_cases'].append(small_case)
-                        print(f"    -> 找到小用例: {small_case_name}")
 
-                        # 添加到汇总数据
                         self.summary_data.append({
                             '序号': len(self.summary_data) + 1,
                             '试验分类': clean_case_number(big_case_name),
@@ -1353,8 +1263,6 @@ class ExcelToWordReport:
                         })
 
             self.big_cases.append(big_case)
-
-        print(f"解析完成: {len(self.big_cases)} 个大用例, 共 {len(self.summary_data)} 个小用例")
 
     def build_column_mapping(self, header_row):
         """
@@ -1402,18 +1310,14 @@ class ExcelToWordReport:
                         break
                 
                 if cell_value:
-                    self.col_name_to_idx[cell_value] = col_idx - 1  # 转为pandas索引（从0开始）
-        
-        print(f"列名映射: {list(self.col_name_to_idx.keys())[:15]}...")
+                    self.col_name_to_idx[cell_value] = col_idx - 1
 
     def parse_without_merge(self):
         """无合并单元格时的备用解析"""
         test_col, header_row = self.find_test_project_column()
         if test_col is None:
-            print("无法找到试验项目列")
             return
 
-        # 建立列名映射
         self.build_column_mapping(header_row + 1 if header_row else 1)
 
         current_big_case = None
@@ -1423,8 +1327,6 @@ class ExcelToWordReport:
             test_project = row_data.iloc[test_col]
 
             if pd.notna(test_project):
-                # 判断是否是大用例（简单规则：看是否缩进或特殊标记）
-                # 这里需要根据实际情况调整
                 pass
 
     def extract_testcase_data(self, row_data):
@@ -1458,12 +1360,10 @@ class ExcelToWordReport:
 
         # 如果没有列名映射，尝试建立
         if not hasattr(self, 'col_name_to_idx') or not self.col_name_to_idx:
-            # 默认使用第一行作为标题
             self.col_name_to_idx = {}
             for idx, col_name in enumerate(self.df.iloc[0]):
                 if pd.notna(col_name):
                     self.col_name_to_idx[str(col_name)] = idx
-            print(f"  列名映射: {list(self.col_name_to_idx.keys())[:10]}...")
 
         # 2. 从Excel读取（补充配置没有的字段）
         for field, keywords in TESTCASE_FIELD_MAPPING.items():
