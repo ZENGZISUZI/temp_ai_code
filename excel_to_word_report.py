@@ -342,7 +342,7 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
         set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
     # 添加空行
-    for _ in range(4):
+    for _ in range(2):
         doc.add_paragraph()
     
     # 报告名称（作为封面标题，从配置获取）
