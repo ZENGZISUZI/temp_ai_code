@@ -427,19 +427,10 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     if company_address:
         addr_para = doc.add_paragraph()
         addr_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        addr_run = addr_para.add_run(company_address)
+        addr_run = addr_para.add_run(f'公司地址：{company_address}')
         addr_run.font.name = font_name
         addr_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         addr_run.font.size = Pt(12)
-    
-    # 报告编号
-    if report_number:
-        num_para = doc.add_paragraph()
-        num_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        num_run = num_para.add_run(f'报告编号：{report_number}')
-        num_run.font.name = font_name
-        num_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-        num_run.font.size = Pt(14)
     
     # 版权声明
     copyright_para = doc.add_paragraph()
