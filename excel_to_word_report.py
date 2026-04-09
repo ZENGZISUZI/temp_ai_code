@@ -205,7 +205,7 @@ def smart_match_field(field_name, excel_columns):
     return None
 
 
-def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, align_center=True):
+def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, align_center=True, vertical_center=True):
     """
     设置单元格字体和对齐方式
     
@@ -214,7 +214,8 @@ def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, al
         font_name: 字体名称（默认微软雅黑）
         font_size: 字体大小（默认五号10.5pt）
         bold: 是否加粗
-        align_center: 是否居中对齐
+        align_center: 是否水平居中对齐（False则靠左）
+        vertical_center: 是否垂直居中
     """
     # 设置字体
     for paragraph in cell.paragraphs:
@@ -224,12 +225,14 @@ def set_cell_font(cell, font_name='微软雅黑', font_size=10.5, bold=False, al
             run.font.bold = bold
             run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         
-        # 设置段落水平居中
+        # 设置段落水平对齐
         if align_center:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        else:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     # 设置单元格垂直居中
-    if align_center:
+    if vertical_center:
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
 
