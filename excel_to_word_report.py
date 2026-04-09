@@ -1472,17 +1472,22 @@ class ExcelToWordReport:
                 toc_para.paragraph_format.left_indent = Cm(1)      # 小用例：缩进1cm
                 is_bold = False
             
+            # 设置制表符：右对齐制表符在页面右侧，带点号前导符
+            from docx.enum.text import WD_TAB_ALIGNMENT, WD_TAB_LEADER
+            tab_stops = toc_para.paragraph_format.tab_stops
+            # A4纸宽度21cm，左右边距各2.54cm，有效宽度约15.92cm
+            tab_stops.add_tab_stop(Cm(15), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.DOTS)
+            
             # 添加超链接标题（根据级别加粗）
             add_hyperlink(toc_para, item_text, bookmark_name, font_name, body_size, bold=is_bold)
             
-            # 添加点号
-            dots_run = toc_para.add_run(' ' + '.' * 40 + ' ')
-            dots_run.font.name = font_name
-            dots_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-            dots_run.font.size = Pt(body_size)
+            # 添加制表符（自动填充点号）
+            tab_run = toc_para.add_run('\t')
+            tab_run.font.name = font_name
+            tab_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+            tab_run.font.size = Pt(body_size)
             
             # 添加页码域（PAGEREF，动态引用书签页码）
-            # 用户需要按 Ctrl+A 全选后按 F9 更新域才能显示正确页码
             page_run = toc_para.add_run()
             fldChar1 = OxmlElement('w:fldChar')
             fldChar1.set(qn('w:fldCharType'), 'begin')
