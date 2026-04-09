@@ -348,7 +348,73 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
         title_run.font.size = Pt(36)
         title_run.font.bold = True
     
-    # 空行
+    # 添加空行
+    for _ in range(3):
+        doc.add_paragraph()
+    
+    # ===== 签名表格（3行4列）=====
+    # 行1: 编制 | 值 | 签发日期 | 值
+    # 行2: 审核 | 值 | 批准 | 值
+    # 行3: (空) | (空) | (合并到批准) | (合并到值)
+    sign_table = doc.add_table(rows=3, cols=4)
+    sign_table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    set_table_border(sign_table)
+    
+    # 设置列宽
+    sign_col_widths = [Cm(2.5), Cm(4), Cm(2.5), Cm(4)]
+    for i, width in enumerate(sign_col_widths):
+        sign_table.columns[i].width = Cm(width)
+    
+    # 行1: 编制 | 值 | 签发日期 | 值
+    cell = sign_table.cell(0, 0)
+    cell.text = '编制'
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(0, 1)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(0, 2)
+    cell.text = '签发日期'
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(0, 3)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    # 行2: 审核 | 值 | 批准 | 值
+    cell = sign_table.cell(1, 0)
+    cell.text = '审核'
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(1, 1)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(1, 2)
+    cell.text = '批准'
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(1, 3)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    # 行3: 合并批准和值列（行2和行3合并）
+    # 合并第3列（批准）的行2和行3
+    sign_table.cell(1, 2).merge(sign_table.cell(2, 2))
+    # 合并第4列（值）的行2和行3
+    sign_table.cell(1, 3).merge(sign_table.cell(2, 3))
+    
+    # 行3的前两列留空
+    cell = sign_table.cell(2, 0)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    cell = sign_table.cell(2, 1)
+    cell.text = ''
+    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    # 添加空行
     for _ in range(3):
         doc.add_paragraph()
     
@@ -360,18 +426,6 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
         num_run.font.name = font_name
         num_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         num_run.font.size = Pt(14)
-    
-    # 空行到底部
-    for _ in range(6):
-        doc.add_paragraph()
-    
-    # 日期
-    date_para = doc.add_paragraph()
-    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    date_run = date_para.add_run(datetime.now().strftime('%Y年%m月%d日'))
-    date_run.font.name = font_name
-    date_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    date_run.font.size = Pt(14)
     
     # 分页符
     doc.add_page_break()
