@@ -20,6 +20,12 @@ output_dir=None
 # 报告名称（页眉显示，None则使用文件名）
 report_name=None
 
+# 公司名称简称（页脚保密信息用）
+company_name=公司
+
+# 公司名称全称（封面Logo下方显示）
+company_full_name=None
+
 # 水印文字（如：内部资料 to 外部，None则不加水印）
 watermark_text=None
 
