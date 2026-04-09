@@ -274,7 +274,7 @@ def set_table_border(table):
         tbl.insert(0, tblPr)
 
 
-def add_cover_page(doc, report_name, report_number, company_name="公司", company_full_name=None, logo_path=None, font_config=None, overview_data=None):
+def add_cover_page(doc, report_name, report_number, company_name="公司", company_full_name=None, company_address=None, logo_path=None, font_config=None, overview_data=None):
     """
     添加报告封面页
     
@@ -284,6 +284,7 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
         report_number: 报告编号
         company_name: 公司名称简称
         company_full_name: 公司名称全称（Logo下方显示）
+        company_address: 公司地址（公司全称下方显示）
         logo_path: Logo图片路径
         font_config: 字体配置
         overview_data: 概述数据（用于封面表格）
@@ -429,6 +430,15 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
         company_full_run.font.name = font_name
         company_full_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         company_full_run.font.size = Pt(14)
+    
+    # 公司地址（公司全称下方）
+    if company_address:
+        addr_para = doc.add_paragraph()
+        addr_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        addr_run = addr_para.add_run(company_address)
+        addr_run.font.name = font_name
+        addr_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        addr_run.font.size = Pt(12)
     
     # 报告编号
     if report_number:
@@ -1268,7 +1278,7 @@ class ExcelToWordReport:
     }
 
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
-                 company_name="公司", company_full_name=None, watermark_text=None, report_name=None, font_config=None,
+                 company_name="公司", company_full_name=None, company_address=None, watermark_text=None, report_name=None, font_config=None,
                  testcase_config=None, table_widths=None):
         """
         初始化
@@ -1280,6 +1290,7 @@ class ExcelToWordReport:
             report_number: 报告编号（页眉用），默认自动生成
             company_name: 公司名称简称（页脚保密信息用）
             company_full_name: 公司名称全称（封面Logo下方显示）
+            company_address: 公司地址（封面公司全称下方显示）
             watermark_text: 水印文字，如 "xxxx to xxxx"
             report_name: 报告名称（页眉、封面标题、文件名用），默认使用文件名
             font_config: 字体配置字典，可覆盖默认配置
@@ -1291,6 +1302,7 @@ class ExcelToWordReport:
         self.report_number = report_number or self._generate_report_number()
         self.company_name = company_name
         self.company_full_name = company_full_name
+        self.company_address = company_address
         self.watermark_text = watermark_text
         self.report_name = report_name
         
@@ -1650,7 +1662,7 @@ class ExcelToWordReport:
 
         # ===== 添加封面页 =====
         report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
-        add_cover_page(doc, report_name, self.report_number, self.company_name, self.company_full_name, self.logo_path, self.font_config, self.overview_data)
+        add_cover_page(doc, report_name, self.report_number, self.company_name, self.company_full_name, self.company_address, self.logo_path, self.font_config, self.overview_data)
 
         # ===== 添加声明页 =====
         add_declaration_page(doc, self.company_name, self.font_config)
@@ -1991,7 +2003,7 @@ def list_sheets(excel_path):
 
 
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
-                   logo_path=None, report_number=None, company_name="公司", company_full_name=None,
+                   logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                    watermark_text=None, report_name=None, font_config=None,
                    testcase_config=None, table_widths=None):
     """
@@ -2010,6 +2022,7 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         report_number: 报告编号
         company_name: 公司名称简称
         company_full_name: 公司名称全称
+        company_address: 公司地址
         watermark_text: 水印文字
         report_name: 报告名称（页眉用）
         font_config: 字体配置字典
@@ -2038,13 +2051,13 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
     # 合并模式
     if merge and len(sheets_to_process) > 1:
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
-                                     logo_path, report_number, company_name, company_full_name,
+                                     logo_path, report_number, company_name, company_full_name, company_address,
                                      watermark_text, report_name, font_config,
                                      testcase_config, table_widths)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                      logo_path, report_number, company_name, company_full_name,
+                                      logo_path, report_number, company_name, company_full_name, company_address,
                                       watermark_text, report_name, font_config,
                                       testcase_config, table_widths)
 
@@ -2084,7 +2097,7 @@ def _resolve_sheets(all_sheets, sheets):
 
 
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
-                                logo_path=None, report_number=None, company_name="公司", company_full_name=None,
+                                logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                                 watermark_text=None, report_name=None, font_config=None,
                                 testcase_config=None, table_widths=None):
     """为每个sheet生成单独的Word报告"""
@@ -2104,7 +2117,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
         try:
             converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
-                                          company_name, company_full_name, watermark_text, report_name, font_config,
+                                          company_name, company_full_name, company_address, watermark_text, report_name, font_config,
                                           testcase_config, table_widths)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
@@ -2118,7 +2131,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 
 
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
-                          logo_path=None, report_number=None, company_name="公司", company_full_name=None,
+                          logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                           watermark_text=None, report_name=None, font_config=None,
                           testcase_config=None, table_widths=None):
     """将多个sheet合并到一个Word文件"""
@@ -2417,6 +2430,9 @@ company_name=公司
 # 公司名称全称（用于封面Logo下方显示）
 company_full_name=None
 
+# 公司地址（用于封面公司名称下方显示）
+company_address=None
+
 # 报告名称（页眉显示，None则使用文件名）
 report_name=None
 
@@ -2556,6 +2572,7 @@ def main():
         report_number=config['report_number'], 
         company_name=config['company_name'],
         company_full_name=config.get('company_full_name'),
+        company_address=config.get('company_address'),
         watermark_text=config['watermark_text'],
         report_name=config['report_name'],
         font_config=font_config,

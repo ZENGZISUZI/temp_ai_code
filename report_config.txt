@@ -26,6 +26,9 @@ company_name=公司
 # 公司名称全称（封面Logo下方显示）
 company_full_name=None
 
+# 公司地址（封面公司名称下方显示）
+company_address=None
+
 # 水印文字（如：内部资料 to 外部，None则不加水印）
 watermark_text=None
 
