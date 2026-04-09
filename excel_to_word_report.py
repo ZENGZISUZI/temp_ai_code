@@ -348,10 +348,6 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
         title_run.font.size = Pt(36)
         title_run.font.bold = True
     
-    # 添加空行
-    for _ in range(3):
-        doc.add_paragraph()
-    
     # ===== 签名表格（3行4列）=====
     # 行1: 编制 | 值 | 签发日期 | 值
     # 行2: 审核 | 值 | 批准 | 值
