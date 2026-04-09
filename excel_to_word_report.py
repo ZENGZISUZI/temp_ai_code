@@ -677,8 +677,13 @@ def update_toc_in_word(word_path):
             # 打开文档
             doc = word.Documents.Open(os.path.abspath(word_path))
             
-            # 更新所有域（包括目录）
-            doc.Fields.Update()
+            # 方法1：全选后更新所有域
+            word.Selection.WholeStory()  # 全选
+            word.Selection.Fields.Update()  # 更新域
+            
+            # 方法2：遍历所有故事范围更新域
+            for story in doc.StoryRanges:
+                story.Fields.Update()
             
             # 保存并关闭文档
             doc.Save()
