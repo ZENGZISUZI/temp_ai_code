@@ -449,6 +449,14 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
         num_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         num_run.font.size = Pt(14)
     
+    # 版权声明
+    copyright_para = doc.add_paragraph()
+    copyright_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    copyright_run = copyright_para.add_run('版权所有 侵权必究')
+    copyright_run.font.name = font_name
+    copyright_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    copyright_run.font.size = Pt(10)
+    
     # 分页符
     doc.add_page_break()
 
