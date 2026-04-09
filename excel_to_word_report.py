@@ -409,13 +409,13 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     cell.text = ''
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
-    # Logo图片（居中）
+    # Logo图片（居中，保持原始比例）
     if logo_path and os.path.exists(logo_path):
         try:
             logo_para = doc.add_paragraph()
             logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             logo_run = logo_para.add_run()
-            logo_run.add_picture(logo_path, width=Cm(4), height=Cm(2.6))  # 较大的logo
+            logo_run.add_picture(logo_path)  # 保持原始尺寸和比例
         except Exception as e:
             print(f"警告: 无法添加Logo图片 - {e}")
     
