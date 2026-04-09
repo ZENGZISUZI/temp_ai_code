@@ -265,6 +265,124 @@ def set_table_border(table):
         tbl.insert(0, tblPr)
 
 
+def add_cover_page(doc, report_name, report_number, company_name="公司", logo_path=None, font_config=None):
+    """
+    添加报告封面页
+    
+    参数:
+        doc: Word文档对象
+        report_name: 报告名称
+        report_number: 报告编号
+        company_name: 公司名称
+        logo_path: Logo图片路径
+        font_config: 字体配置
+    """
+    fc = font_config or {}
+    font_name = fc.get('font_name', '微软雅黑')
+    
+    # 添加多个空行使内容居中
+    for _ in range(6):
+        doc.add_paragraph()
+    
+    # 公司名称
+    company_para = doc.add_paragraph()
+    company_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    company_run = company_para.add_run(company_name)
+    company_run.font.name = font_name
+    company_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    company_run.font.size = Pt(22)
+    company_run.font.bold = True
+    
+    # 空行
+    doc.add_paragraph()
+    
+    # 报告名称
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_para.add_run('测试报告')
+    title_run.font.name = font_name
+    title_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    title_run.font.size = Pt(36)
+    title_run.font.bold = True
+    
+    # 空行
+    for _ in range(3):
+        doc.add_paragraph()
+    
+    # 报告编号
+    if report_number:
+        num_para = doc.add_paragraph()
+        num_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        num_run = num_para.add_run(f'报告编号：{report_number}')
+        num_run.font.name = font_name
+        num_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        num_run.font.size = Pt(14)
+    
+    # 空行到底部
+    for _ in range(8):
+        doc.add_paragraph()
+    
+    # 日期
+    from datetime import datetime
+    date_para = doc.add_paragraph()
+    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    date_run = date_para.add_run(datetime.now().strftime('%Y年%m月%d日'))
+    date_run.font.name = font_name
+    date_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    date_run.font.size = Pt(14)
+    
+    # 分页符
+    doc.add_page_break()
+
+
+def add_declaration_page(doc, company_name="公司", font_config=None):
+    """
+    添加声明页
+    
+    参数:
+        doc: Word文档对象
+        company_name: 公司名称
+        font_config: 字体配置
+    """
+    fc = font_config or {}
+    font_name = fc.get('font_name', '微软雅黑')
+    
+    # 声明标题
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_para.add_run('声  明')
+    title_run.font.name = font_name
+    title_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    title_run.font.size = Pt(22)
+    title_run.font.bold = True
+    
+    # 空行
+    doc.add_paragraph()
+    
+    # 声明内容
+    declaration_text = f"""1. 本报告无检测专用章、骑缝章无效。
+
+2. 本报告无主检、审核、批准签字无效。
+
+3. 本报告涂改、复印、扫描无效。
+
+4. 本报告仅对送检样品负责。
+
+5. 未经{company_name}书面批准，不得部分复制本报告。
+
+6. 如对本报告有异议，请在收到报告之日起15日内向{company_name}提出。"""
+    
+    content_para = doc.add_paragraph()
+    content_run = content_para.add_run(declaration_text)
+    content_run.font.name = font_name
+    content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    content_run.font.size = Pt(12)
+    content_para.paragraph_format.line_spacing = 1.5
+    
+    # 分页符
+    doc.add_page_break()
+
+
 def add_header_footer(doc, report_name, report_number, logo_path=None, company_name="公司"):
     """
     添加页眉和页脚（带横线分隔）
@@ -1411,8 +1529,14 @@ class ExcelToWordReport:
         # 设置标题样式（确保导航窗格能识别）
         setup_heading_styles(doc, self.font_config)
 
-        # ===== 添加页眉页脚 =====
+        # ===== 添加封面页 =====
         report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
+        add_cover_page(doc, report_name, self.report_number, self.company_name, self.logo_path, self.font_config)
+
+        # ===== 添加声明页 =====
+        add_declaration_page(doc, self.company_name, self.font_config)
+
+        # ===== 添加页眉页脚 =====
         add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
 
         # ===== 添加水印 =====
