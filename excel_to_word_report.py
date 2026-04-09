@@ -42,6 +42,15 @@ OVERVIEW_FIELD_MAPPING = {
     '工作模式': ['工作模式', '运行模式', '工作状态', '模式'],
     # 测试仪器设备相关
     '测试仪器设备': ['测试仪器', '仪器设备', '试验设备', '设备', '使用仪器'],
+    # 封面专用字段
+    '产品名称': ['产品名称', '零部件名称', '设备名称', '名称'],
+    '零件号': ['零件号', '零件编号', '部件号', '图号'],
+    '客户名称': ['客户名称', '客户', '委托单位', '委托方'],
+    '客户地址': ['客户地址', '地址', '委托单位地址'],
+    '收样日期': ['收样日期', '收样时间', '接收日期', '样品接收日期'],
+    '试验日期': ['试验日期', '测试日期', '试验时间', '测试时间'],
+    '测试结论': ['测试结论', '试验结论', '结论', '测试结果'],
+    '产品型号': ['产品型号', '型号', '规格型号', '设备型号'],
 }
 
 # 小用例表格字段映射（Word字段 -> Excel可能列名）
@@ -265,7 +274,7 @@ def set_table_border(table):
         tbl.insert(0, tblPr)
 
 
-def add_cover_page(doc, report_name, report_number, company_name="公司", logo_path=None, font_config=None):
+def add_cover_page(doc, report_name, report_number, company_name="公司", logo_path=None, font_config=None, overview_data=None):
     """
     添加报告封面页
     
@@ -276,12 +285,57 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
         company_name: 公司名称
         logo_path: Logo图片路径
         font_config: 字体配置
+        overview_data: 概述数据（用于封面表格）
     """
     fc = font_config or {}
     font_name = fc.get('font_name', '微软雅黑')
+    body_size = fc.get('body_size', 10.5)
     
-    # 添加多个空行使内容居中
-    for _ in range(6):
+    # ===== 顶部信息表格（4行4列）=====
+    # 属性排列：产品名称|值|零件号|值 / 客户名称|值|客户地址|值 / 收样日期|值|试验日期|值 / 测试结论|值|产品型号|值
+    cover_fields = [
+        ('产品名称', '零件号'),
+        ('客户名称', '客户地址'),
+        ('收样日期', '试验日期'),
+        ('测试结论', '产品型号'),
+    ]
+    
+    cover_table = doc.add_table(rows=4, cols=4)
+    cover_table.alignment = WD_TABLE_ALIGNMENT.LEFT  # 靠左对齐
+    set_table_border(cover_table)
+    
+    # 设置列宽
+    col_widths = [Cm(3), Cm(5), Cm(3), Cm(5)]  # 属性列窄，值列宽
+    for i, width in enumerate(col_widths):
+        cover_table.columns[i].width = Cm(width)
+    
+    # 填充表格
+    data = overview_data or {}
+    for row_idx, (field1, field2) in enumerate(cover_fields):
+        # 第一列：属性1
+        cell = cover_table.cell(row_idx, 0)
+        cell.text = field1
+        set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+        
+        # 第二列：值1
+        cell = cover_table.cell(row_idx, 1)
+        value1 = data.get(field1, '')
+        cell.text = str(value1) if value1 else ''
+        set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+        
+        # 第三列：属性2
+        cell = cover_table.cell(row_idx, 2)
+        cell.text = field2
+        set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
+        
+        # 第四列：值2
+        cell = cover_table.cell(row_idx, 3)
+        value2 = data.get(field2, '')
+        cell.text = str(value2) if value2 else ''
+        set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
+    
+    # 添加空行
+    for _ in range(4):
         doc.add_paragraph()
     
     # 公司名称
@@ -319,11 +373,10 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
         num_run.font.size = Pt(14)
     
     # 空行到底部
-    for _ in range(8):
+    for _ in range(6):
         doc.add_paragraph()
     
     # 日期
-    from datetime import datetime
     date_para = doc.add_paragraph()
     date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     date_run = date_para.add_run(datetime.now().strftime('%Y年%m月%d日'))
@@ -1531,7 +1584,7 @@ class ExcelToWordReport:
 
         # ===== 添加封面页 =====
         report_name = self.report_name or os.path.splitext(os.path.basename(self.word_path))[0]
-        add_cover_page(doc, report_name, self.report_number, self.company_name, self.logo_path, self.font_config)
+        add_cover_page(doc, report_name, self.report_number, self.company_name, self.logo_path, self.font_config, self.overview_data)
 
         # ===== 添加声明页 =====
         add_declaration_page(doc, self.company_name, self.font_config)
