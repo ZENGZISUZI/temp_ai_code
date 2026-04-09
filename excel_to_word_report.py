@@ -338,26 +338,15 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", logo_
     for _ in range(4):
         doc.add_paragraph()
     
-    # 公司名称
-    company_para = doc.add_paragraph()
-    company_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    company_run = company_para.add_run(company_name)
-    company_run.font.name = font_name
-    company_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    company_run.font.size = Pt(22)
-    company_run.font.bold = True
-    
-    # 空行
-    doc.add_paragraph()
-    
-    # 报告名称
-    title_para = doc.add_paragraph()
-    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_para.add_run('测试报告')
-    title_run.font.name = font_name
-    title_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    title_run.font.size = Pt(36)
-    title_run.font.bold = True
+    # 报告名称（作为封面标题，从配置获取）
+    if report_name:
+        title_para = doc.add_paragraph()
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title_run = title_para.add_run(report_name)
+        title_run.font.name = font_name
+        title_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        title_run.font.size = Pt(36)
+        title_run.font.bold = True
     
     # 空行
     for _ in range(3):
@@ -1225,18 +1214,27 @@ class ExcelToWordReport:
             report_number: 报告编号（页眉用），默认自动生成
             company_name: 公司名称（页脚保密信息用）
             watermark_text: 水印文字，如 "xxxx to xxxx"
-            report_name: 报告名称（页眉用），默认使用文件名
+            report_name: 报告名称（页眉、封面标题、文件名用），默认使用文件名
             font_config: 字体配置字典，可覆盖默认配置
             testcase_config: 小用例属性配置（优先级高于Excel），字典格式
             table_widths: 表格列宽配置字典，如 {'testcase': [2.5,4,2.5,4], 'summary': [2,5,6,2] }
         """
         self.excel_path = excel_path
-        self.word_path = word_path or os.path.splitext(excel_path)[0] + '_报告.docx'
         self.logo_path = logo_path
         self.report_number = report_number or self._generate_report_number()
         self.company_name = company_name
         self.watermark_text = watermark_text
         self.report_name = report_name
+        
+        # Word输出路径：优先使用report_name作为文件名
+        if word_path:
+            self.word_path = word_path
+        elif report_name:
+            # 使用report_name作为文件名
+            output_dir = os.path.dirname(excel_path)
+            self.word_path = os.path.join(output_dir, f'{report_name}.docx')
+        else:
+            self.word_path = os.path.splitext(excel_path)[0] + '_报告.docx'
         
         # 合并字体配置
         self.font_config = self.DEFAULT_FONT_CONFIG.copy()
