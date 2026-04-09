@@ -1430,8 +1430,6 @@ class ExcelToWordReport:
         toc_run.font.bold = self.font_config.get('title1_bold', True)
         toc_run.font.color.rgb = RGBColor(0, 0, 0)
         
-        doc.add_paragraph()  # 空行
-        
         # 生成目录项（带超链接）
         toc_items = [
             ('1 概述', 'toc_1', 1),
