@@ -724,7 +724,7 @@ def add_bookmark(paragraph, bookmark_name):
     tag.append(bookmark_end)
 
 
-def add_hyperlink(paragraph, text, bookmark_name, font_name='微软雅黑', font_size=10.5):
+def add_hyperlink(paragraph, text, bookmark_name, font_name='微软雅黑', font_size=10.5, bold=False):
     """
     添加超链接到段落（指向书签）
     
@@ -734,6 +734,7 @@ def add_hyperlink(paragraph, text, bookmark_name, font_name='微软雅黑', font
         bookmark_name: 目标书签名称
         font_name: 字体名称
         font_size: 字体大小
+        bold: 是否加粗
     """
     # 创建超链接元素
     hyperlink = OxmlElement('w:hyperlink')
@@ -753,6 +754,11 @@ def add_hyperlink(paragraph, text, bookmark_name, font_name='微软雅黑', font
     sz = OxmlElement('w:sz')
     sz.set(qn('w:val'), str(int(font_size * 2)))  # Word字号单位是半磅
     rPr.append(sz)
+    
+    # 设置加粗
+    if bold:
+        b = OxmlElement('w:b')
+        rPr.append(b)
     
     new_run.append(rPr)
     
@@ -1454,17 +1460,20 @@ class ExcelToWordReport:
         for item_text, bookmark_name, level in toc_items:
             toc_para = doc.add_paragraph()
             
-            # 根据级别设置段落缩进（使用段落格式，更专业）
+            # 根据级别设置段落缩进和加粗
             from docx.shared import Cm
             if level == 1:
                 toc_para.paragraph_format.left_indent = Cm(0)      # 大标题：无缩进
+                is_bold = True
             elif level == 2:
                 toc_para.paragraph_format.left_indent = Cm(0.5)    # 次标题/大用例：缩进0.5cm
+                is_bold = True
             else:  # level == 3
                 toc_para.paragraph_format.left_indent = Cm(1)      # 小用例：缩进1cm
+                is_bold = False
             
-            # 添加超链接标题
-            add_hyperlink(toc_para, item_text, bookmark_name, font_name, body_size)
+            # 添加超链接标题（根据级别加粗）
+            add_hyperlink(toc_para, item_text, bookmark_name, font_name, body_size, bold=is_bold)
             
             # 添加点号
             dots_run = toc_para.add_run(' ' + '.' * 40 + ' ')
