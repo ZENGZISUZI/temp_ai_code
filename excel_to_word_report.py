@@ -351,9 +351,10 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
         title_run.font.bold = True
     
     # ===== 签名表格（3行4列）=====
+    # 第3列和第4列合并三行
     # 行1: 编制 | 值 | 签发日期 | 值
-    # 行2: 审核 | 值 | 批准 | 值
-    # 行3: (空) | (空) | (合并到批准) | (合并到值)
+    # 行2: 审核 | 值 | (合并)  | (合并)
+    # 行3: 批准 | 值 | (合并)  | (合并)
     sign_table = doc.add_table(rows=3, cols=4)
     sign_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     set_table_border(sign_table)
@@ -362,6 +363,11 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     sign_col_widths = [Cm(2.5), Cm(4), Cm(2.5), Cm(4)]
     for i, width in enumerate(sign_col_widths):
         sign_table.columns[i].width = Cm(width)
+    
+    # 合并第3列（签发日期）的三行
+    sign_table.cell(0, 2).merge(sign_table.cell(1, 2)).merge(sign_table.cell(2, 2))
+    # 合并第4列（值）的三行
+    sign_table.cell(0, 3).merge(sign_table.cell(1, 3)).merge(sign_table.cell(2, 3))
     
     # 行1: 编制 | 值 | 签发日期 | 值
     cell = sign_table.cell(0, 0)
@@ -380,7 +386,7 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     cell.text = ''
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
-    # 行2: 审核 | 值 | 批准 | 值
+    # 行2: 审核 | 值 | (合并) | (合并)
     cell = sign_table.cell(1, 0)
     cell.text = '审核'
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
@@ -389,24 +395,10 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     cell.text = ''
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
-    cell = sign_table.cell(1, 2)
+    # 行3: 批准 | 值 | (合并) | (合并)
+    cell = sign_table.cell(2, 0)
     cell.text = '批准'
     set_cell_font(cell, font_name=font_name, font_size=body_size, bold=True, align_center=False, vertical_center=True)
-    
-    cell = sign_table.cell(1, 3)
-    cell.text = ''
-    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
-    
-    # 行3: 合并批准和值列（行2和行3合并）
-    # 合并第3列（批准）的行2和行3
-    sign_table.cell(1, 2).merge(sign_table.cell(2, 2))
-    # 合并第4列（值）的行2和行3
-    sign_table.cell(1, 3).merge(sign_table.cell(2, 3))
-    
-    # 行3的前两列留空
-    cell = sign_table.cell(2, 0)
-    cell.text = ''
-    set_cell_font(cell, font_name=font_name, font_size=body_size, bold=False, align_center=False, vertical_center=True)
     
     cell = sign_table.cell(2, 1)
     cell.text = ''
