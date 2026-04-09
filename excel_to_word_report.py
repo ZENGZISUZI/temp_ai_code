@@ -10,7 +10,7 @@ Excel测试报告转Word文档工具
 import pandas as pd
 from docx import Document
 from docx.shared import Pt, Inches, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -1461,13 +1461,11 @@ class ExcelToWordReport:
             toc_para = doc.add_paragraph()
             
             # 设置行间距为单倍行距（最紧凑）
-            from docx.shared import Pt
             toc_para.paragraph_format.line_spacing = 1.0  # 单倍行距
             toc_para.paragraph_format.space_before = Pt(0)
             toc_para.paragraph_format.space_after = Pt(0)
             
             # 根据级别设置段落缩进和加粗
-            from docx.shared import Cm
             if level == 1:
                 toc_para.paragraph_format.left_indent = Cm(0)      # 大标题：无缩进
                 is_bold = True
@@ -1479,7 +1477,6 @@ class ExcelToWordReport:
                 is_bold = False
             
             # 设置制表符：右对齐制表符在页面右侧，带点号前导符
-            from docx.enum.text import WD_TAB_ALIGNMENT, WD_TAB_LEADER
             tab_stops = toc_para.paragraph_format.tab_stops
             # A4纸宽度21cm，左右边距各2.54cm，有效宽度约15.92cm
             tab_stops.add_tab_stop(Cm(15), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.DOTS)
