@@ -1224,7 +1224,10 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_border(table)
     
-    # 设置列宽
+    # 启用自动列宽（根据内容自适应）
+    table.autofit = True
+    
+    # 设置列宽（如果提供了自定义列宽）
     if col_widths and len(col_widths) == 4:
         for i, width in enumerate(col_widths):
             table.columns[i].width = Cm(width)
