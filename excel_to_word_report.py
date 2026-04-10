@@ -1213,6 +1213,14 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     font_name = config['font_name']
     font_size = config['body_size']
     
+    # 调试：打印 data_dict 内容
+    print(f"\n  [调试] create_testcase_table 收到的 data_dict:")
+    for k, v in data_dict.items():
+        if isinstance(v, dict):
+            print(f"    {k}: {{'text': '{v.get('text', '')}', 'images': {len(v.get('images', []))}张}}")
+        else:
+            print(f"    {k}: {v}")
+    
     # 后续行字段（2列）
     remaining_fields = ['试验机构', '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
     
