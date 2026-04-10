@@ -459,7 +459,7 @@ def add_cover_page(doc, report_name, report_number, company_name="公司", compa
     doc.add_page_break()
 
 
-def add_declaration_page(doc, company_name="公司", font_config=None):
+def add_declaration_page(doc, company_name="公司", font_config=None, declaration_text=None):
     """
     添加声明页
     
@@ -467,6 +467,7 @@ def add_declaration_page(doc, company_name="公司", font_config=None):
         doc: Word文档对象
         company_name: 公司名称
         font_config: 字体配置
+        declaration_text: 声明内容（支持换行自动识别为列表项）
     """
     fc = font_config or {}
     font_name = fc.get('font_name', '微软雅黑')
@@ -483,24 +484,28 @@ def add_declaration_page(doc, company_name="公司", font_config=None):
     # 空行
     doc.add_paragraph()
     
-    # 声明内容
-    declaration_text = f"""1. 本报告无检测专用章、骑缝章无效。
-
-2. 本报告无主检、审核、批准签字无效。
-
-3. 本报告涂改、复印、扫描无效。
-
-4. 本报告仅对送检样品负责。
-
-5. 未经{company_name}书面批准，不得部分复制本报告。
-
-6. 如对本报告有异议，请在收到报告之日起15日内向{company_name}提出。"""
+    # 默认声明内容
+    if not declaration_text:
+        declaration_text = f"""本报告无检测专用章、骑缝章无效。
+本报告无主检、审核、批准签字无效。
+本报告涂改、复印、扫描无效。
+本报告仅对送检样品负责。
+未经{company_name}书面批准，不得部分复制本报告。
+如对本报告有异议，请在收到报告之日起15日内向{company_name}提出。"""
+    
+    # 按换行分割，自动添加序号
+    lines = [line.strip() for line in declaration_text.split('\n') if line.strip()]
     
     content_para = doc.add_paragraph()
-    content_run = content_para.add_run(declaration_text)
-    content_run.font.name = font_name
-    content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    content_run.font.size = Pt(12)
+    for idx, line in enumerate(lines, 1):
+        # 检查是否已有序号，没有则添加
+        if not re.match(r'^\d+[\.、．]', line):
+            line = f"{idx}. {line}"
+        content_run = content_para.add_run(line + '\n\n')
+        content_run.font.name = font_name
+        content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        content_run.font.size = Pt(12)
+    
     content_para.paragraph_format.line_spacing = 1.5
     
     # 分页符
@@ -1334,7 +1339,7 @@ class ExcelToWordReport:
 
     def __init__(self, excel_path, word_path=None, logo_path=None, report_number=None, 
                  company_name="公司", company_full_name=None, company_address=None, watermark_text=None, report_name=None, font_config=None,
-                 testcase_config=None, table_widths=None):
+                 testcase_config=None, table_widths=None, declaration_text=None):
         """
         初始化
 
@@ -1351,6 +1356,7 @@ class ExcelToWordReport:
             font_config: 字体配置字典，可覆盖默认配置
             testcase_config: 小用例属性配置（优先级高于Excel），字典格式
             table_widths: 表格列宽配置字典，如 {'testcase': [2.5,4,2.5,4], 'summary': [2,5,6,2] }
+            declaration_text: 声明页内容（支持换行自动识别为列表项）
         """
         self.excel_path = excel_path
         self.logo_path = logo_path
@@ -1360,6 +1366,7 @@ class ExcelToWordReport:
         self.company_address = company_address
         self.watermark_text = watermark_text
         self.report_name = report_name
+        self.declaration_text = declaration_text
         
         # Word输出路径：优先使用report_name作为文件名
         if word_path:
@@ -1821,7 +1828,7 @@ class ExcelToWordReport:
         add_cover_page(doc, report_name, self.report_number, self.company_name, self.company_full_name, self.company_address, self.logo_path, self.font_config, self.overview_data)
 
         # ===== 添加声明页 =====
-        add_declaration_page(doc, self.company_name, self.font_config)
+        add_declaration_page(doc, self.company_name, self.font_config, self.declaration_text)
 
         # ===== 添加页眉页脚 =====
         add_header_footer(doc, report_name, self.report_number, self.logo_path, self.company_name)
