@@ -1227,10 +1227,7 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     # 启用自动列宽（根据内容自适应）
     table.autofit = True
     
-    # 设置列宽（如果提供了自定义列宽）
-    if col_widths and len(col_widths) == 4:
-        for i, width in enumerate(col_widths):
-            table.columns[i].width = Cm(width)
+    # 不设置固定列宽，让 Word 自动计算
     
     # 第一行：开始日期 | 值 | 结束日期 | 值
     table.cell(0, 0).text = '开始日期'
@@ -1957,10 +1954,8 @@ class ExcelToWordReport:
         summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
         set_table_border(summary_table)
         
-        # 设置列宽
-        summary_widths = self.table_widths.get('summary', [2.67, 6.4, 5.75, 2.67])
-        for i, width in enumerate(summary_widths):
-            summary_table.columns[i].width = Cm(width)
+        # 启用自动列宽
+        summary_table.autofit = True
 
         # 表头
         headers = ['序号', '试验分类', '试验项目', '测试结论']
@@ -2356,10 +2351,8 @@ def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                 summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
                 set_table_border(summary_table)
                 
-                # 设置列宽
-                summary_widths = table_widths.get('summary', [2.67, 6.4, 5.75, 2.67]) if table_widths else [2.67, 6.4, 5.75, 2.67]
-                for i, width in enumerate(summary_widths):
-                    summary_table.columns[i].width = Cm(width)
+                # 启用自动列宽
+                summary_table.autofit = True
                 
                 headers = ['序号', '试验分类', '试验项目', '测试结论']
                 for i, header in enumerate(headers):
