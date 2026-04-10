@@ -1447,10 +1447,13 @@ class ExcelToWordReport:
                 if hasattr(anchor, '_from'):
                     row = anchor._from.row  # 0-based
                     col = anchor._from.col  # 0-based
+                    print(f"  图片位置(anchor._from): 行{row}, 列{col}")
                 elif hasattr(anchor, 'row') and hasattr(anchor, 'col'):
                     row = anchor.row
                     col = anchor.col
+                    print(f"  图片位置(anchor): 行{row}, 列{col}")
                 else:
+                    print(f"  图片位置: 无法获取anchor信息")
                     continue
                 
                 # 获取图片数据
@@ -1465,6 +1468,7 @@ class ExcelToWordReport:
             
             if self.excel_images:
                 print(f"  从Excel中提取了 {len(self.excel_images)} 张图片")
+                print(f"  图片位置列表: {list(self.excel_images.keys())}")
                 
         except Exception as e:
             print(f"  警告: 提取Excel图片失败 - {e}")
@@ -1741,12 +1745,19 @@ class ExcelToWordReport:
         
         # 3. 提取该行的图片（如果有）
         if excel_row_idx and hasattr(self, 'excel_images') and self.excel_images:
+            print(f"  [调试] 当前处理行: excel_row_idx={excel_row_idx}")
+            print(f"  [调试] 图片位置列表: {list(self.excel_images.keys())}")
             for (img_row, img_col), img_info in self.excel_images.items():
+                print(f"  [调试] 检查图片: img_row={img_row}, img_col={img_col}, 期望匹配行={excel_row_idx - 1}")
                 # openpyxl的行号是0-based，需要匹配
+                # excel_row_idx是pandas的行号（从1开始，对应openpyxl的1-based）
+                # img_row是openpyxl anchor的行号（0-based）
+                # 所以匹配条件应该是 img_row == excel_row_idx - 1
                 if img_row == excel_row_idx - 1:  # openpyxl是0-based
                     # 找到对应的字段名
                     for col_name, col_idx in self.col_name_to_idx.items():
                         if col_idx == img_col:
+                            print(f"  ✓ 匹配到图片: 行{excel_row_idx}, 列{col_name}({img_col})")
                             # 如果该字段已有文本值，添加图片信息
                             if col_name in data:
                                 data[col_name] = {'text': data[col_name], 'image': img_info}
