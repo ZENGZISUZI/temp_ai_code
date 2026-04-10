@@ -1263,8 +1263,8 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
         # 获取值（可能是字符串或包含图片的字典）
         value = data_dict.get(field, '')
         
-        # 检查是否包含图片
-        if isinstance(value, dict) and 'image' in value:
+        # 检查是否包含图片（支持多张图片）
+        if isinstance(value, dict) and ('images' in value or 'image' in value):
             # 有图片的情况
             cell = table.cell(row_idx, 1)
             
@@ -1274,32 +1274,37 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
                 cell.text = str(text_value)
                 set_cell_font(cell, font_name=font_name, font_size=font_size, align_center=False)
             
-            # 添加图片
-            img_info = value.get('image')
-            if img_info:
-                try:
-                    # 获取图片数据
-                    img_data = img_info.get('data')
-                    if img_data and PIL_AVAILABLE:
-                        # 创建图片流
-                        img_stream = io.BytesIO(img_data)
-                        
-                        # 获取单元格的第一个段落
-                        if not cell.paragraphs:
-                            cell.add_paragraph()
-                        para = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
-                        
-                        # 添加图片到段落
-                        run = para.add_run()
-                        # 使用原始尺寸或按比例缩放
-                        run.add_picture(img_stream, width=Cm(10))  # 设置宽度，高度自动按比例
-                        
-                except Exception as e:
-                    print(f"  警告: 插入图片失败 - {e}")
-                    # 插入图片失败时，只显示文本
-                    if text_value:
-                        cell.text = str(text_value)
-                        set_cell_font(cell, font_name=font_name, font_size=font_size, align_center=False)
+            # 添加图片（支持多张）
+            img_list = value.get('images', [])
+            if not img_list and 'image' in value:
+                # 兼容旧格式（单张图片）
+                img_list = [value.get('image')]
+            
+            if img_list and PIL_AVAILABLE:
+                for img_info in img_list:
+                    if not img_info:
+                        continue
+                    try:
+                        # 获取图片数据
+                        img_data = img_info.get('data')
+                        if img_data:
+                            # 创建图片流
+                            img_stream = io.BytesIO(img_data)
+                            
+                            # 获取单元格的段落（如果没有则创建）
+                            if not cell.paragraphs:
+                                cell.add_paragraph()
+                            para = cell.paragraphs[-1] if cell.paragraphs else cell.add_paragraph()
+                            
+                            # 添加图片到段落
+                            run = para.add_run()
+                            run.add_picture(img_stream, width=Cm(10))  # 设置宽度，高度自动按比例
+                            
+                            # 图片之间换行（添加新段落）
+                            para = cell.add_paragraph()
+                            
+                    except Exception as e:
+                        print(f"  警告: 插入图片失败 - {e}")
         else:
             # 只有文本的情况
             table.cell(row_idx, 1).text = str(value) if value else ''
@@ -1459,16 +1464,23 @@ class ExcelToWordReport:
                 # 获取图片数据
                 img_data = image._data()
                 
-                # 存储图片信息: {(row, col): image_data}
-                self.excel_images[(row, col)] = {
+                # 存储图片信息: {(row, col): [image_data1, image_data2, ...]}
+                # 同一单元格可能有多张图片，用列表存储
+                img_info = {
                     'data': img_data,
                     'width': image.width,
                     'height': image.height
                 }
+                
+                if (row, col) not in self.excel_images:
+                    self.excel_images[(row, col)] = []
+                self.excel_images[(row, col)].append(img_info)
             
             if self.excel_images:
-                print(f"  从Excel中提取了 {len(self.excel_images)} 张图片")
-                print(f"  图片位置列表: {list(self.excel_images.keys())}")
+                total_images = sum(len(imgs) for imgs in self.excel_images.values())
+                print(f"  从Excel中提取了 {total_images} 张图片")
+                for pos, imgs in self.excel_images.items():
+                    print(f"    位置{pos}: {len(imgs)}张")
                 
         except Exception as e:
             print(f"  警告: 提取Excel图片失败 - {e}")
@@ -1747,8 +1759,8 @@ class ExcelToWordReport:
         if excel_row_idx and hasattr(self, 'excel_images') and self.excel_images:
             print(f"  [调试] 当前处理行: excel_row_idx={excel_row_idx}")
             print(f"  [调试] 图片位置列表: {list(self.excel_images.keys())}")
-            for (img_row, img_col), img_info in self.excel_images.items():
-                print(f"  [调试] 检查图片: img_row={img_row}, img_col={img_col}, 期望匹配行={excel_row_idx - 1}")
+            for (img_row, img_col), img_list in self.excel_images.items():
+                print(f"  [调试] 检查图片: img_row={img_row}, img_col={img_col}, 期望匹配行={excel_row_idx - 1}, 图片数量={len(img_list)}")
                 # openpyxl的行号是0-based，需要匹配
                 # excel_row_idx是pandas的行号（从1开始，对应openpyxl的1-based）
                 # img_row是openpyxl anchor的行号（0-based）
@@ -1757,12 +1769,12 @@ class ExcelToWordReport:
                     # 找到对应的字段名
                     for col_name, col_idx in self.col_name_to_idx.items():
                         if col_idx == img_col:
-                            print(f"  ✓ 匹配到图片: 行{excel_row_idx}, 列{col_name}({img_col})")
+                            print(f"  ✓ 匹配到图片: 行{excel_row_idx}, 列{col_name}({img_col}), 共{len(img_list)}张")
                             # 如果该字段已有文本值，添加图片信息
                             if col_name in data:
-                                data[col_name] = {'text': data[col_name], 'image': img_info}
+                                data[col_name] = {'text': data[col_name], 'images': img_list}
                             else:
-                                data[col_name] = {'text': '', 'image': img_info}
+                                data[col_name] = {'text': '', 'images': img_list}
                             break
 
         return data
