@@ -1281,18 +1281,30 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
             
             if img_list:
                 print(f"  [插入图片] 字段 '{field}': {len(img_list)}张")
-                for idx, img_path in enumerate(img_list):
-                    if not img_path or not os.path.exists(img_path):
-                        print(f"    ❌ 图片不存在: {img_path}")
-                        continue
+                
+                # 过滤有效图片路径
+                valid_imgs = [img for img in img_list if img and os.path.exists(img)]
+                if not valid_imgs:
+                    print(f"    ❌ 没有有效图片")
+                else:
                     try:
+                        # 获取单元格的段落（如果没有则创建）
                         if not cell.paragraphs:
                             cell.add_paragraph()
                         para = cell.paragraphs[-1] if cell.paragraphs else cell.add_paragraph()
-                        run = para.add_run()
-                        run.add_picture(img_path, width=Cm(10))
-                        print(f"    ✓ 插入成功: {os.path.basename(img_path)}")
-                        para = cell.add_paragraph()
+                        
+                        # 计算每张图片的宽度（并排显示，总宽度不超过15cm）
+                        total_width = 15  # 总宽度
+                        img_width = total_width / len(valid_imgs) if len(valid_imgs) > 1 else 10
+                        
+                        for idx, img_path in enumerate(valid_imgs):
+                            run = para.add_run()
+                            run.add_picture(img_path, width=Cm(img_width))
+                            print(f"    ✓ 插入成功: {os.path.basename(img_path)}")
+                            # 图片之间加空格分隔
+                            if idx < len(valid_imgs) - 1:
+                                para.add_run("  ")
+                                
                     except Exception as e:
                         print(f"    ❌ 插入失败: {e}")
         else:
