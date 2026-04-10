@@ -472,13 +472,13 @@ def add_declaration_page(doc, company_name="公司", font_config=None, declarati
     fc = font_config or {}
     font_name = fc.get('font_name', '微软雅黑')
     
-    # 声明标题
+    # 声明标题（三号字体）
     title_para = doc.add_paragraph()
     title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     title_run = title_para.add_run('声  明')
     title_run.font.name = font_name
     title_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    title_run.font.size = Pt(22)
+    title_run.font.size = Pt(16)  # 三号字体
     title_run.font.bold = True
     
     # 空行
@@ -504,7 +504,7 @@ def add_declaration_page(doc, company_name="公司", font_config=None, declarati
         content_run = content_para.add_run(line + '\n')
         content_run.font.name = font_name
         content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-        content_run.font.size = Pt(12)
+        content_run.font.size = Pt(10.5)  # 五号字体
     
     content_para.paragraph_format.line_spacing = 1.5
     
