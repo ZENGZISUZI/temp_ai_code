@@ -1766,11 +1766,21 @@ class ExcelToWordReport:
                     # 找到对应的字段名
                     for col_name, col_idx in self.col_name_to_idx.items():
                         if col_idx == img_col:
-                            print(f"  ✓ 匹配图片: 行{excel_row_idx}, 列'{col_name}', {len(img_list)}张")
-                            if col_name in data:
-                                data[col_name] = {'text': data[col_name], 'images': img_list}
+                            # 将Excel列名转换为标准字段名
+                            standard_field = None
+                            for field, keywords in TESTCASE_FIELD_MAPPING.items():
+                                if col_name in keywords or any(kw in col_name for kw in keywords):
+                                    standard_field = field
+                                    break
+                            
+                            # 如果没找到映射，使用原列名
+                            target_field = standard_field or col_name
+                            print(f"  ✓ 匹配图片: 行{excel_row_idx}, 列'{col_name}' -> '{target_field}', {len(img_list)}张")
+                            
+                            if target_field in data:
+                                data[target_field] = {'text': data[target_field], 'images': img_list}
                             else:
-                                data[col_name] = {'text': '', 'images': img_list}
+                                data[target_field] = {'text': '', 'images': img_list}
                             break
 
         return data
