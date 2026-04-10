@@ -501,7 +501,7 @@ def add_declaration_page(doc, company_name="公司", font_config=None, declarati
         # 检查是否已有序号，没有则添加
         if not re.match(r'^\d+[\.、．]', line):
             line = f"{idx}. {line}"
-        content_run = content_para.add_run(line + '\n\n')
+        content_run = content_para.add_run(line + '\n')
         content_run.font.name = font_name
         content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         content_run.font.size = Pt(12)
