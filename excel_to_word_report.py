@@ -1213,14 +1213,6 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
     font_name = config['font_name']
     font_size = config['body_size']
     
-    # 调试：打印 data_dict 内容
-    print(f"\n  [调试] create_testcase_table 收到的 data_dict:")
-    for k, v in data_dict.items():
-        if isinstance(v, dict):
-            print(f"    {k}: {{'text': '{v.get('text', '')}', 'images': {len(v.get('images', []))}张}}")
-        else:
-            print(f"    {k}: {v}")
-    
     # 后续行字段（2列）
     remaining_fields = ['试验机构', '试验环境', '试验标准', '试验条件', '规格要求', '试验数据', '试验结论']
     
@@ -1274,7 +1266,6 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
         # 检查是否包含图片（支持多张图片）
         if isinstance(value, dict) and ('images' in value or 'image' in value):
             # 有图片的情况
-            print(f"  [调试] 字段 '{field}' 包含图片数据")
             cell = table.cell(row_idx, 1)
             
             # 添加文本
@@ -1286,40 +1277,24 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
             # 添加图片（支持多张）- 现在是文件路径列表
             img_list = value.get('images', [])
             if not img_list and 'image' in value:
-                # 兼容旧格式（单张图片）
                 img_list = [value.get('image')]
             
-            print(f"  [调试] 图片列表: {img_list}")
-            
             if img_list:
+                print(f"  [插入图片] 字段 '{field}': {len(img_list)}张")
                 for idx, img_path in enumerate(img_list):
-                    if not img_path:
-                        print(f"  [调试] 图片 {idx+1} 路径为空，跳过")
+                    if not img_path or not os.path.exists(img_path):
+                        print(f"    ❌ 图片不存在: {img_path}")
                         continue
-                    
-                    # 检查文件是否存在
-                    if not os.path.exists(img_path):
-                        print(f"  ❌ 图片文件不存在: {img_path}")
-                        continue
-                    
                     try:
-                        # 获取单元格的段落（如果没有则创建）
                         if not cell.paragraphs:
                             cell.add_paragraph()
                         para = cell.paragraphs[-1] if cell.paragraphs else cell.add_paragraph()
-                        
-                        # 添加图片到段落
                         run = para.add_run()
-                        run.add_picture(img_path, width=Cm(10))  # 设置宽度，高度自动按比例
-                        print(f"  ✓ 图片 {idx+1} 插入成功: {os.path.basename(img_path)}")
-                        
-                        # 图片之间换行（添加新段落）
+                        run.add_picture(img_path, width=Cm(10))
+                        print(f"    ✓ 插入成功: {os.path.basename(img_path)}")
                         para = cell.add_paragraph()
-                        
                     except Exception as e:
-                        print(f"  ❌ 插入图片 {idx+1} 失败: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        print(f"    ❌ 插入失败: {e}")
         else:
             # 只有文本的情况
             table.cell(row_idx, 1).text = str(value) if value else ''
@@ -1785,20 +1760,13 @@ class ExcelToWordReport:
         
         # 3. 提取该行的图片（如果有）
         if excel_row_idx and hasattr(self, 'excel_images') and self.excel_images:
-            print(f"  [调试] 当前处理行: excel_row_idx={excel_row_idx}")
-            print(f"  [调试] 图片位置列表: {list(self.excel_images.keys())}")
             for (img_row, img_col), img_list in self.excel_images.items():
-                print(f"  [调试] 检查图片: img_row={img_row}, img_col={img_col}, 期望匹配行={excel_row_idx - 1}, 图片数量={len(img_list)}")
                 # openpyxl的行号是0-based，需要匹配
-                # excel_row_idx是pandas的行号（从1开始，对应openpyxl的1-based）
-                # img_row是openpyxl anchor的行号（0-based）
-                # 所以匹配条件应该是 img_row == excel_row_idx - 1
-                if img_row == excel_row_idx - 1:  # openpyxl是0-based
+                if img_row == excel_row_idx - 1:
                     # 找到对应的字段名
                     for col_name, col_idx in self.col_name_to_idx.items():
                         if col_idx == img_col:
-                            print(f"  ✓ 匹配到图片: 行{excel_row_idx}, 列{col_name}({img_col}), 共{len(img_list)}张")
-                            # 如果该字段已有文本值，添加图片信息
+                            print(f"  ✓ 匹配图片: 行{excel_row_idx}, 列'{col_name}', {len(img_list)}张")
                             if col_name in data:
                                 data[col_name] = {'text': data[col_name], 'images': img_list}
                             else:
