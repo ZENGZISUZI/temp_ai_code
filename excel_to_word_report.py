@@ -1266,6 +1266,7 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
         # 检查是否包含图片（支持多张图片）
         if isinstance(value, dict) and ('images' in value or 'image' in value):
             # 有图片的情况
+            print(f"  [调试] 字段 '{field}' 包含图片数据")
             cell = table.cell(row_idx, 1)
             
             # 添加文本
@@ -1280,13 +1281,17 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
                 # 兼容旧格式（单张图片）
                 img_list = [value.get('image')]
             
+            print(f"  [调试] 图片列表长度: {len(img_list)}, PIL_AVAILABLE: {PIL_AVAILABLE}")
+            
             if img_list and PIL_AVAILABLE:
-                for img_info in img_list:
+                for idx, img_info in enumerate(img_list):
                     if not img_info:
+                        print(f"  [调试] 图片 {idx+1} 信息为空，跳过")
                         continue
                     try:
                         # 获取图片数据
                         img_data = img_info.get('data')
+                        print(f"  [调试] 图片 {idx+1} 数据大小: {len(img_data) if img_data else 0} bytes")
                         if img_data:
                             # 创建图片流
                             img_stream = io.BytesIO(img_data)
@@ -1299,12 +1304,15 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
                             # 添加图片到段落
                             run = para.add_run()
                             run.add_picture(img_stream, width=Cm(10))  # 设置宽度，高度自动按比例
+                            print(f"  ✓ 图片 {idx+1} 插入成功")
                             
                             # 图片之间换行（添加新段落）
                             para = cell.add_paragraph()
                             
                     except Exception as e:
-                        print(f"  警告: 插入图片失败 - {e}")
+                        print(f"  ❌ 插入图片 {idx+1} 失败: {e}")
+                        import traceback
+                        traceback.print_exc()
         else:
             # 只有文本的情况
             table.cell(row_idx, 1).text = str(value) if value else ''
