@@ -1283,40 +1283,39 @@ def create_testcase_table(doc, data_dict, font_config=None, col_widths=None):
                 cell.text = str(text_value)
                 set_cell_font(cell, font_name=font_name, font_size=font_size, align_center=False)
             
-            # 添加图片（支持多张）
+            # 添加图片（支持多张）- 现在是文件路径列表
             img_list = value.get('images', [])
             if not img_list and 'image' in value:
                 # 兼容旧格式（单张图片）
                 img_list = [value.get('image')]
             
-            print(f"  [调试] 图片列表长度: {len(img_list)}, PIL_AVAILABLE: {PIL_AVAILABLE}")
+            print(f"  [调试] 图片列表: {img_list}")
             
-            if img_list and PIL_AVAILABLE:
-                for idx, img_info in enumerate(img_list):
-                    if not img_info:
-                        print(f"  [调试] 图片 {idx+1} 信息为空，跳过")
+            if img_list:
+                for idx, img_path in enumerate(img_list):
+                    if not img_path:
+                        print(f"  [调试] 图片 {idx+1} 路径为空，跳过")
                         continue
+                    
+                    # 检查文件是否存在
+                    if not os.path.exists(img_path):
+                        print(f"  ❌ 图片文件不存在: {img_path}")
+                        continue
+                    
                     try:
-                        # 获取图片数据
-                        img_data = img_info.get('data')
-                        print(f"  [调试] 图片 {idx+1} 数据大小: {len(img_data) if img_data else 0} bytes")
-                        if img_data:
-                            # 创建图片流
-                            img_stream = io.BytesIO(img_data)
-                            
-                            # 获取单元格的段落（如果没有则创建）
-                            if not cell.paragraphs:
-                                cell.add_paragraph()
-                            para = cell.paragraphs[-1] if cell.paragraphs else cell.add_paragraph()
-                            
-                            # 添加图片到段落
-                            run = para.add_run()
-                            run.add_picture(img_stream, width=Cm(10))  # 设置宽度，高度自动按比例
-                            print(f"  ✓ 图片 {idx+1} 插入成功")
-                            
-                            # 图片之间换行（添加新段落）
-                            para = cell.add_paragraph()
-                            
+                        # 获取单元格的段落（如果没有则创建）
+                        if not cell.paragraphs:
+                            cell.add_paragraph()
+                        para = cell.paragraphs[-1] if cell.paragraphs else cell.add_paragraph()
+                        
+                        # 添加图片到段落
+                        run = para.add_run()
+                        run.add_picture(img_path, width=Cm(10))  # 设置宽度，高度自动按比例
+                        print(f"  ✓ 图片 {idx+1} 插入成功: {os.path.basename(img_path)}")
+                        
+                        # 图片之间换行（添加新段落）
+                        para = cell.add_paragraph()
+                        
                     except Exception as e:
                         print(f"  ❌ 插入图片 {idx+1} 失败: {e}")
                         import traceback
@@ -1445,7 +1444,16 @@ class ExcelToWordReport:
             self._extract_excel_images()
 
     def _extract_excel_images(self):
-        """从Excel中提取图片信息（仅xlsx格式）"""
+        """从Excel中提取图片并保存到文件（仅xlsx格式）"""
+        # 图片输出目录
+        self.images_dir = os.path.join(os.path.dirname(self.excel_path), "extracted_images")
+        
+        # 清空旧图片
+        if os.path.exists(self.images_dir):
+            import shutil
+            shutil.rmtree(self.images_dir)
+        os.makedirs(self.images_dir, exist_ok=True)
+        
         try:
             wb = load_workbook(self.excel_path)
             
@@ -1459,6 +1467,7 @@ class ExcelToWordReport:
                 ws = wb.active
             
             # 遍历所有图片
+            img_index = 0
             for image in ws._images:
                 # 获取图片的锚点信息（位置）
                 anchor = image.anchor
@@ -1468,38 +1477,41 @@ class ExcelToWordReport:
                 if hasattr(anchor, '_from'):
                     row = anchor._from.row  # 0-based
                     col = anchor._from.col  # 0-based
-                    print(f"  图片位置(anchor._from): 行{row}, 列{col}")
                 elif hasattr(anchor, 'row') and hasattr(anchor, 'col'):
                     row = anchor.row
                     col = anchor.col
-                    print(f"  图片位置(anchor): 行{row}, 列{col}")
                 else:
-                    print(f"  图片位置: 无法获取anchor信息")
+                    print(f"  图片位置: 无法获取anchor信息，跳过")
                     continue
                 
                 # 获取图片数据
                 img_data = image._data()
                 
-                # 存储图片信息: {(row, col): [image_data1, image_data2, ...]}
-                # 同一单元格可能有多张图片，用列表存储
-                img_info = {
-                    'data': img_data,
-                    'width': image.width,
-                    'height': image.height
-                }
+                # 保存图片到文件
+                img_index += 1
+                img_filename = f"row{row}_col{col}_{img_index}.png"
+                img_path = os.path.join(self.images_dir, img_filename)
                 
+                with open(img_path, 'wb') as f:
+                    f.write(img_data)
+                
+                print(f"  ✓ 提取图片: {img_filename} (行{row}, 列{col})")
+                
+                # 存储图片路径信息: {(row, col): [path1, path2, ...]}
                 if (row, col) not in self.excel_images:
                     self.excel_images[(row, col)] = []
-                self.excel_images[(row, col)].append(img_info)
+                self.excel_images[(row, col)].append(img_path)
             
             if self.excel_images:
                 total_images = sum(len(imgs) for imgs in self.excel_images.values())
-                print(f"  从Excel中提取了 {total_images} 张图片")
-                for pos, imgs in self.excel_images.items():
-                    print(f"    位置{pos}: {len(imgs)}张")
+                print(f"  ✓ 共提取 {total_images} 张图片，保存到: {self.images_dir}")
+            else:
+                print(f"  未找到图片")
                 
         except Exception as e:
-            print(f"  警告: 提取Excel图片失败 - {e}")
+            print(f"  ❌ 提取Excel图片失败 - {e}")
+            import traceback
+            traceback.print_exc()
 
     def find_test_project_column(self):
         """找到"试验项目"列（在所有行中搜索）"""
