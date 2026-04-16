@@ -2166,7 +2166,7 @@ def list_sheets(excel_path):
 def process_sheets(excel_path, sheets=None, output_dir=None, merge=False, 
                    logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                    watermark_text=None, report_name=None, font_config=None,
-                   testcase_config=None, table_widths=None):
+                   testcase_config=None, table_widths=None, declaration_text=None):
     """
     处理指定的sheet，生成Word报告
 
@@ -2214,13 +2214,13 @@ def process_sheets(excel_path, sheets=None, output_dir=None, merge=False,
         return _merge_sheets_to_word(excel_path, sheets_to_process, output_dir, 
                                      logo_path, report_number, company_name, company_full_name, company_address,
                                      watermark_text, report_name, font_config,
-                                     testcase_config, table_widths)
+                                     testcase_config, table_widths, declaration_text)
     
     # 单独生成模式
     return _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                       logo_path, report_number, company_name, company_full_name, company_address,
                                       watermark_text, report_name, font_config,
-                                      testcase_config, table_widths)
+                                      testcase_config, table_widths, declaration_text)
 
 
 def _resolve_sheets(all_sheets, sheets):
@@ -2260,7 +2260,7 @@ def _resolve_sheets(all_sheets, sheets):
 def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
                                 logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                                 watermark_text=None, report_name=None, font_config=None,
-                                testcase_config=None, table_widths=None):
+                                testcase_config=None, table_widths=None, declaration_text=None):
     """为每个sheet生成单独的Word报告"""
     output_files = []
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
@@ -2281,7 +2281,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
         try:
             converter = ExcelToWordReport(excel_path, word_path, logo_path, report_number, 
                                           company_name, company_full_name, company_address, watermark_text, report_name, font_config,
-                                          testcase_config, table_widths)
+                                          testcase_config, table_widths, declaration_text)
             converter.load_excel(sheet_name)
             converter.parse_test_cases()
             output_path = converter.generate_word_report()
@@ -2296,7 +2296,7 @@ def _generate_separate_reports(excel_path, sheets_to_process, output_dir,
 def _merge_sheets_to_word(excel_path, sheets_to_process, output_dir,
                           logo_path=None, report_number=None, company_name="公司", company_full_name=None, company_address=None,
                           watermark_text=None, report_name=None, font_config=None,
-                          testcase_config=None, table_widths=None):
+                          testcase_config=None, table_widths=None, declaration_text=None):
     """将多个sheet合并到一个Word文件"""
     base_name = os.path.splitext(os.path.basename(excel_path))[0]
     word_path = os.path.join(output_dir, f"{base_name}_合并报告.docx")
@@ -2738,7 +2738,8 @@ def main():
         report_name=config['report_name'],
         font_config=font_config,
         testcase_config=testcase_config,
-        table_widths=table_widths
+        table_widths=table_widths,
+        declaration_text=config.get('declaration_text'),
     )
 
     # 输出结果
