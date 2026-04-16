@@ -118,6 +118,56 @@ def clean_case_number(name):
     return result.strip()
 
 
+def extract_product_name(case_name):
+    """
+    从用例名字中提取产品名称（OBC/DCDC/逆变/INV），放到开头
+    
+    规则：
+    - 如果名字里有 OBC/DCDC/逆变/INV，把它提到最前面
+    - 支持格式："xxx-OBC" -> "OBC xxx" 或 "xxx（OBC）" -> "OBC xxx" 或 "OBC xxx" -> "OBC xxx"
+    
+    参数:
+        case_name: 用例名字
+        
+    返回:
+        重命名后的名字
+    """
+    if not case_name:
+        return case_name
+    
+    # 定义产品名称关键词（按优先级排序）
+    product_keywords = [
+        ('OBC', 'OBC'),
+        ('DCDC', 'DCDC'),
+        ('逆变', '逆变'),
+        ('INV', 'INV'),
+    ]
+    
+    # 检查是否包含产品名称
+    for keyword, display_name in product_keywords:
+        if keyword in case_name:
+            clean_name = case_name
+            
+            # 移除括号及其中的内容（包括中文括号和英文括号）
+            clean_name = re.sub(r'[（(]' + re.escape(keyword) + r'[）)]', '', clean_name)
+            # 移除横杠及其中的内容
+            clean_name = re.sub(r'-\s*' + re.escape(keyword) + r'\s*', '', clean_name)
+            # 直接移除关键词本身（处理"DCDC 效率测试"这种情况）
+            clean_name = re.sub(re.escape(keyword), '', clean_name)
+            # 清理多余的空格和标点
+            clean_name = clean_name.strip().strip('-').strip()
+            
+            # 如果清理后为空，说明整个名字就是产品名称
+            if not clean_name:
+                return display_name
+            
+            # 返回：产品名称 + 原名字（去掉产品名称部分）
+            return f"{display_name}{clean_name}"
+    
+    # 没有产品名称，返回原名
+    return case_name
+
+
 def extract_case_number(name):
     """
     提取用例名字中的数字前缀
@@ -1631,8 +1681,11 @@ class ExcelToWordReport:
 
         # 解析大用例和小用例
         for i, (start_row, end_row, big_case_name) in enumerate(merged_ranges):
+            # 优化大用例命名：把产品名称提到开头
+            optimized_big_case_name = extract_product_name(big_case_name)
+            
             big_case = {
-                'name': big_case_name,
+                'name': optimized_big_case_name,
                 'small_cases': []
             }
 
@@ -1644,16 +1697,19 @@ class ExcelToWordReport:
                     small_case_name = row_data.iloc[test_col - 1] if test_col else None
 
                     if pd.notna(small_case_name) and str(small_case_name).strip():
+                        # 优化小用例命名：把产品名称提到开头
+                        optimized_small_case_name = extract_product_name(str(small_case_name))
+                        
                         small_case = {
-                            'name': str(small_case_name),
+                            'name': optimized_small_case_name,
                             'data': self.extract_testcase_data(row_data, row_idx)
                         }
                         big_case['small_cases'].append(small_case)
 
                         self.summary_data.append({
                             '序号': len(self.summary_data) + 1,
-                            '试验分类': clean_case_number(big_case_name),
-                            '试验项目': clean_case_number(str(small_case_name)),
+                            '试验分类': clean_case_number(optimized_big_case_name),
+                            '试验项目': clean_case_number(optimized_small_case_name),
                             '测试结论': small_case['data'].get('试验结论', '')
                         })
 
