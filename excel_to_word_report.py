@@ -481,9 +481,6 @@ def add_declaration_page(doc, company_name="公司", font_config=None, declarati
     title_run.font.size = Pt(16)  # 三号字体
     title_run.font.bold = True
     
-    # 空行
-    doc.add_paragraph()
-    
     # 默认声明内容
     if not declaration_text:
         declaration_text = f"""本报告无检测专用章、骑缝章无效。
@@ -506,7 +503,9 @@ def add_declaration_page(doc, company_name="公司", font_config=None, declarati
         content_run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
         content_run.font.size = Pt(10.5)  # 五号字体
     
-    content_para.paragraph_format.line_spacing = 1.5
+    content_para.paragraph_format.line_spacing = 1.0
+    content_para.paragraph_format.space_before = Pt(0)
+    content_para.paragraph_format.space_after = Pt(0)
     
     # 分页符
     doc.add_page_break()
